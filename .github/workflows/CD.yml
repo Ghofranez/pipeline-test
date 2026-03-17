@@ -2,7 +2,7 @@ name: CD - Deploy Docker App Local
 
 on:
   workflow_run:
-    workflows: ["CI - Build and Test"]  # Nom exact de ton workflow CI
+    workflows: ["Build and Test"]  # Nom exact de ton workflow CI
     types:
       - completed                       # Se déclenche après la fin du CI
 
