@@ -25,7 +25,7 @@ jobs:
         username: asus
         key: ${{ secrets.SERVER_SSH_KEY }}
         script: |
-          cd /home/asus  # Remplace par le chemin réel sur ton serveur
+          cd /home/asus/devsecops-react  # Remplace par le chemin réel sur ton serveur
 
           # Arrêter et supprimer tous les containers existants
           docker-compose down
