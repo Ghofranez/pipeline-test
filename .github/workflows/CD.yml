@@ -1,0 +1,33 @@
+name: CD - Deploy Docker App Local
+
+on:
+  workflow_run:
+    workflows: ["CI - Build and Test"]  # Nom exact de ton workflow CI
+    types:
+      - completed                       # Se déclenche après la fin du CI
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}  # Ne s'exécute que si CI a réussi
+    runs-on: ubuntu-24.04
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4  # Récupère le code du repo
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3  # Configure Docker pour build avancé
+
+    - name: Build Docker image
+      run: docker build -t myapp:latest .
+
+    - name: SSH Deploy to Localhost
+      uses: appleboy/ssh-action@v0.1.9
+      with:
+        host: localhost                     # Serveur local
+        username: asus                       # Ton nom d’utilisateur local
+        key: ${{ secrets.SERVER_SSH_KEY }}  # Clé privée que tu as générée
+        script: |
+          docker stop myapp || true
+          docker rm myapp || true
+          docker run -d --name myapp -p 8000:8000 myapp:latest
