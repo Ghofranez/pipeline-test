@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"        # python
+    directory: "/"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "npm"        # node (si tu en as)
+    directory: "/"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "docker"     # pour Dockerfile
+    directory: "/"
+    schedule:
+      interval: "daily"
