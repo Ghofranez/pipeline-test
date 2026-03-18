@@ -32,10 +32,45 @@ jobs:
       - name: Test backend
         run: curl http://localhost:8000/
 
-  # ✅ Le deploy attend que build ET securite soient OK
+  # ✅ Security scan dans le même fichier
+  security-scan:
+    needs: build       # attend que build finisse
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build images pour scan
+        run: docker compose build
+
+      - name: Trivy scan - Code
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: 1
+
+      - name: Trivy scan - Backend
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: image
+          image-ref: my-backend:latest
+          severity: CRITICAL,HIGH
+          exit-code: 1
+
+      - name: Trivy scan - Frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: image
+          image-ref: my-frontend:latest
+          severity: CRITICAL,HIGH
+          exit-code: 1
+
+  # ✅ Deploy bloqué si security-scan échoue
   deploy:
-    needs: [build, security-scan]   # BLOQUÉ si sécurité échoue
+    needs: [build, security-scan]
     runs-on: ubuntu-24.04
     steps:
       - name: Deploy
-        run: echo "Deploy uniquement si sécurité OK ✅"
+        run: echo "Deploy OK ✅"
