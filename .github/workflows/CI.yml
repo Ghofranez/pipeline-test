@@ -1,34 +1,41 @@
-name: Build and Test 
+name: Build and Test
 
 on:
   push:
-    branches: [ master]
+    branches: [ master ]
   pull_request:
     branches: [ master ]
 
 jobs:
   build:
     runs-on: ubuntu-24.04
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Build images
-      run: docker compose build
+      - name: Build images
+        run: docker compose build
 
-    - name: Start containers
-      run: docker compose up -d
+      - name: Start containers
+        run: docker compose up -d
 
-    - name: Wait for backend
-      run: |
-        until curl -s http://localhost:8000/; do
-          echo "Waiting for backend..."
-          sleep 2
-        done
+      - name: Wait for backend
+        run: |
+          until curl -s http://localhost:8000/; do
+            echo "Waiting for backend..."
+            sleep 2
+          done
 
-    - name: Test backend
-      run: curl http://localhost:8000/
+      - name: Test backend
+        run: curl http://localhost:8000/
+
+  # ✅ Le deploy attend que build ET securite soient OK
+  deploy:
+    needs: [build, security-scan]   # BLOQUÉ si sécurité échoue
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Deploy
+        run: echo "Deploy uniquement si sécurité OK ✅"
