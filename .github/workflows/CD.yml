@@ -9,48 +9,47 @@ on:
 jobs:
   deploy:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    runs-on: self-hosted          # Utilise votre VM directement
+    runs-on: self-hosted
 
     steps:
-      # 1. Récupérer le code source sur la VM
+      # 1. Récupérer le code source proprement dans le dossier du Runner
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Exécution du déploiement (Directement dans le shell de la VM)
+      # 2. Exécuter le déploiement directement sur la VM
       - name: Execute Deployment Script
         run: |
           echo "=== DEBUT DU DEPLOIEMENT SUR LA VM ==="
 
-          # Accéder au dossier du projet (créé par vous au préalable)
-          # Note : Le runner télécharge aussi le code dans son dossier '_work', 
-          # mais ici on synchronise avec votre dossier de production.
-          cd /home/ghofrane/pipeline-test || exit 1
+          # On se place dans le dossier où le runner a téléchargé le code
+          cd $GITHUB_WORKSPACE
+          echo "Répertoire de travail : $(pwd)"
 
-          # Mettre à jour le code local
-          git pull origin main
-
-          # ── Sauvegarder les données ──
-          BACKUP_DIR="/home/asus/backups/$(date +%Y%m%d_%H%M%S)"
+          # ── Sauvegarder les données (Backup) ──
+          # On crée un dossier backup dans le home de l'utilisateur actuel
+          BACKUP_DIR="$HOME/backups/$(date +%Y%m%d_%H%M%S)"
           mkdir -p "$BACKUP_DIR"
-          cp -r /home/asus/devsecops-react/data "$BACKUP_DIR" 2>/dev/null || true
+          cp -r ./data "$BACKUP_DIR" 2>/dev/null || true
           echo "Backup créé dans : $BACKUP_DIR"
 
           # ── Gestion Docker ──
           echo "Arrêt des anciens containers..."
           docker-compose down
 
-          echo "Reconstruction et lancement..."
+          echo "Reconstruction et lancement des services..."
+          # Build et lance en arrière-plan
           docker-compose up --build -d
 
-          # ── Health Check ──
+          # ── Health Check (Vérification) ──
           echo "Attente du démarrage (15s)..."
           sleep 15
 
           if curl -f -s http://localhost:80; then
             echo "✅ Application démarrée avec succès sur le port 80 !"
           else
-            echo "❌ Échec du test de santé ! Rollback en cours..."
+            echo "❌ Échec du test de santé ! Tentative de Rollback..."
             docker-compose down
+            # Retour à la version précédente si possible
             git checkout HEAD~1
             docker-compose up --build -d
             echo "⚠️ Rollback effectué."
@@ -59,11 +58,10 @@ jobs:
 
           echo "=== DEPLOIEMENT TERMINE AVEC SUCCES ==="
 
-      # 3. Notifications simples
       - name: Notify Success
         if: success()
-        run: echo "✅ Le pipeline a fini son travail avec succès."
+        run: echo "Le déploiement est terminé et l'application répond."
 
       - name: Notify Failure
         if: failure()
-        run: echo "❌ Le pipeline a échoué. Vérifiez les logs Docker sur la VM."
+        run: echo "Le déploiement a échoué. Vérifiez les logs avec 'docker-compose logs'."
