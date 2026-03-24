@@ -1,34 +1,111 @@
 name: CD - Deploy Docker App Local
 
+# Déclenchement : ce pipeline se lance automatiquement
+# quand le pipeline CI "Build and Test" se termine avec succès
 on:
   workflow_run:
-    workflows: ["Build and Test"]
+    workflows: ["Build and Test"]  # Nom exact de ton pipeline CI
     types:
-      - completed
+      - completed                  # Se déclenche quand CI est terminé
 
 jobs:
   deploy:
+    # Condition : on déploie SEULEMENT si le CI a réussi
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04          # Machine GitHub qui exécute le pipeline
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      # ─────────────────────────────────────────
+      # ÉTAPE 1 : Récupérer le code source
+      # ─────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4  # Clone ton repo GitHub sur la machine
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      # ─────────────────────────────────────────
+      # ÉTAPE 2 : Préparer Docker Buildx
+      # ─────────────────────────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3  # Active le builder Docker avancé
 
-    - name: SSH Deploy to Localhost
-      uses: appleboy/ssh-action@v0.1.9
-      with:
-        host: localhost
-        username: asus
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        script: |
-          cd /home/asus/devsecops-react  # Remplace par le chemin réel sur ton serveur
+      # ─────────────────────────────────────────
+      # ÉTAPE 3 : Déploiement sur la VM via SSH
+      # ─────────────────────────────────────────
+      - name: SSH Deploy to VM
+        uses: appleboy/ssh-action@v1.0.3  # Action qui se connecte à ta VM via SSH
+        with:
+          host: ${{ secrets.SERVER_HOST }}      # IP de ta VM (ex: 127.0.0.1)
+          port: ${{ secrets.SERVER_PORT }}      # Port SSH forwarding (ex: 2222)
+          username: ${{ secrets.SERVER_USER }}  # Utilisateur Ubuntu (ex: asus)
+          key: ${{ secrets.SERVER_SSH_KEY }}    # Clé privée SSH stockée dans GitHub
+          script: |
+            echo "=== DEBUT DU DEPLOIEMENT ==="
 
-          # Arrêter et supprimer tous les containers existants
-          docker-compose down
+            # ── Aller dans le dossier du projet ──
+            cd /home/asus/devsecops-react
 
-          # Build et lancer tous les services définis dans docker-compose.yml
-          docker-compose up --build -d
+            # ── Récupérer la dernière version du code depuis GitHub ──
+            # Important : s'assurer qu'on déploie toujours la dernière version
+            git pull origin main
+
+            # ── Sauvegarder les données importantes avant le déploiement ──
+            # Crée un dossier backup avec la date et l'heure actuelles
+            BACKUP_DIR="/home/asus/backups/$(date +%Y%m%d_%H%M%S)"
+            mkdir -p $BACKUP_DIR
+            # Copie les fichiers de config et données dans le backup
+            cp -r /home/asus/devsecops-react/data $BACKUP_DIR 2>/dev/null || true
+            echo "Backup créé dans : $BACKUP_DIR"
+
+            # ── Arrêter les containers en cours ──
+            # 'down' arrête et supprime les containers existants
+            docker-compose down
+
+            # ── Rebuilder et relancer tous les services ──
+            # '--build' : reconstruit les images Docker
+            # '-d'      : lance en arrière-plan (detached mode)
+            docker-compose up --build -d
+
+            # ── Health Check : vérifier que l'app fonctionne ──
+            echo "Attente du démarrage de l'application..."
+            sleep 15  # Attendre 15 secondes que les containers démarrent
+
+            # Vérifie si l'app répond sur le port 80
+            # '-f' : fail silencieusement si erreur HTTP
+            # '-s' : mode silencieux (pas d'affichage de progression)
+            if curl -f -s http://localhost:80; then
+              echo "✅ Application démarrée avec succès !"
+            else
+              # ── Rollback automatique si l'app ne répond pas ──
+              echo "❌ Échec du déploiement ! Rollback en cours..."
+
+              # Arrêter les containers défaillants
+              docker-compose down
+
+              # Revenir à la version précédente du code
+              git checkout HEAD~1
+
+              # Relancer avec l'ancienne version
+              docker-compose up --build -d
+
+              echo "⚠️ Rollback effectué vers la version précédente"
+
+              # Faire échouer le pipeline pour notifier GitHub
+              exit 1
+            fi
+
+            echo "=== DEPLOIEMENT TERMINE AVEC SUCCES ==="
+
+      # ─────────────────────────────────────────
+      # ÉTAPE 4 : Notification en cas de succès
+      # ─────────────────────────────────────────
+      - name: Notify Success
+        if: success()  # S'exécute seulement si toutes les étapes ont réussi
+        run: echo "✅ Déploiement réussi sur la VM !"
+        # Tu peux remplacer par une notification Slack/email si besoin
+
+      # ─────────────────────────────────────────
+      # ÉTAPE 5 : Notification en cas d'échec
+      # ─────────────────────────────────────────
+      - name: Notify Failure
+        if: failure()  # S'exécute seulement si une étape a échoué
+        run: echo "❌ Déploiement échoué ! Vérifier les logs."
+        # Tu peux remplacer par une notification Slack/email si besoin
