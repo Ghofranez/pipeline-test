@@ -24,7 +24,7 @@ jobs:
           # Accéder au dossier du projet (créé par vous au préalable)
           # Note : Le runner télécharge aussi le code dans son dossier '_work', 
           # mais ici on synchronise avec votre dossier de production.
-          cd /home/asus/devsecops-react || exit 1
+          cd /home/ghofrane/pipeline-test || exit 1
 
           # Mettre à jour le code local
           git pull origin main
