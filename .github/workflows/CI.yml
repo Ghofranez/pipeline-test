@@ -7,6 +7,7 @@ on:
     branches: [ master ]
 
 jobs:
+
   build:
     runs-on: ubuntu-24.04
     steps:
@@ -29,12 +30,50 @@ jobs:
             sleep 2
           done
 
-      - name: Test backend
-        run: curl http://localhost:8000/
+      - name: Test backend health
+        run: curl -f http://localhost:8000/
 
-  # ✅ Security scan dans le même fichier
+  lint:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Backend linting (Python)
+      - name: Install flake8
+        run: pip install flake8
+
+      - name: Lint backend
+        run: flake8 backend/ --max-line-length=120
+
+      # Frontend linting (React)
+      - name: Install frontend deps
+        run: cd frontend && npm install
+
+      - name: Lint frontend
+        run: cd frontend && npm run lint
+
+  unit-tests:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start containers
+        run: docker compose up -d
+
+      # Backend tests (FastAPI + pytest)
+      - name: Run backend unit tests
+        run: docker compose exec -T backend pytest tests/ -v
+
+      # Frontend tests (React)
+      - name: Run frontend tests
+        run: docker compose exec -T frontend npm test -- --watchAll=false
+
   security-scan:
-    needs: build       # attend que build finisse
+    needs: [build, lint, unit-tests]
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
@@ -67,10 +106,6 @@ jobs:
           severity: CRITICAL
           exit-code: 1
 
-  # ✅ Deploy bloqué si security-scan échoue
-  deploy:
-    needs: [build, security-scan]
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Deploy
-        run: echo "Deploy OK ✅"
+      - name: Notify CI Failure
+        if: failure()
+        run: echo "❌ CI échouée - Deploy bloqué !"
