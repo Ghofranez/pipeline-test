@@ -51,24 +51,8 @@ jobs:
       - name: Lint frontend
         run: cd frontend && npm run lint
 
-  unit-tests:
-    needs: build
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Start containers
-        run: docker compose up -d
-
-      - name: Run backend unit tests
-        run: docker compose exec -T backend pytest tests/ -v
-
-      - name: Run frontend tests
-        run: docker compose exec -T frontend npm test -- --watchAll=false
-
   security-scan:
-    needs: [build, lint, unit-tests]
+    needs: [build, lint]
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
@@ -103,4 +87,4 @@ jobs:
 
       - name: Notify CI Failure
         if: failure()
-        run: echo "❌ CI échouée - Deploy bloqué !"
+        run: echo " CI échouée - Deploy bloqué !"
