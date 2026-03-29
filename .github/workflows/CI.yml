@@ -40,14 +40,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Backend linting (Python)
-      - name: Install flake8
-        run: pip install flake8
-
       - name: Lint backend
-        run: flake8 backend/ --max-line-length=120
+        run: |
+          pip install flake8
+          flake8 backend/ --max-line-length=120
 
-      # Frontend linting (React)
       - name: Install frontend deps
         run: cd frontend && npm install
 
@@ -64,11 +61,9 @@ jobs:
       - name: Start containers
         run: docker compose up -d
 
-      # Backend tests (FastAPI + pytest)
       - name: Run backend unit tests
         run: docker compose exec -T backend pytest tests/ -v
 
-      # Frontend tests (React)
       - name: Run frontend tests
         run: docker compose exec -T frontend npm test -- --watchAll=false
 
