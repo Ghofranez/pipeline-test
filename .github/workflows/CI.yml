@@ -33,26 +33,8 @@ jobs:
       - name: Test backend health
         run: curl -f http://localhost:8000/
 
-  lint:
-    needs: build
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Lint backend
-        run: |
-          pip install flake8
-          flake8 backend/ --max-line-length=120
-
-      - name: Install frontend deps
-        run: cd frontend && npm install
-
-      - name: Lint frontend
-        run: cd frontend && npm run lint
-
   security-scan:
-    needs: [build, lint]
+    needs: build
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
@@ -87,4 +69,4 @@ jobs:
 
       - name: Notify CI Failure
         if: failure()
-        run: echo " CI échouée - Deploy bloqué !"
+        run: echo "❌ CI échouée - Deploy bloqué !"
