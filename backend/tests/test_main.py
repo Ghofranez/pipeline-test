@@ -19,3 +19,4 @@ def test_health():
 def test_not_found():
     response = client.get("/route-inexistante")
     assert response.status_code == 404
+    
