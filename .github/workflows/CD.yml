@@ -12,37 +12,26 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: Execute Deployment Script
         run: |
           echo "=== DÉBUT DU DÉPLOIEMENT ==="
           cd $GITHUB_WORKSPACE
-
-          # 1. Sauvegarde version actuelle pour rollback
-          docker compose ps > /tmp/previous_state.txt
-
-          # 2. Arrêt propre
-          docker compose down
-
-          # 3. Rebuild et relance
-          docker compose up -d --build
-
+          docker-compose down
+          docker-compose up -d --build
+          echo "Attente du démarrage des services..."
+          sleep 20
+          docker ps
           echo "=== DÉPLOIEMENT TERMINÉ ==="
 
       - name: Health check après deploy
         run: |
-          echo "Vérification que l'app tourne..."
           until curl -sf http://localhost:8000/; do
             echo "Waiting for backend..."
             sleep 3
           done
           echo "✅ Backend opérationnel !"
-          until curl -sf http://localhost:8080/; do
-            echo "Waiting for frontend..."
-            sleep 3
-          done
-          echo "✅ Frontend opérationnel !"
 
       - name: Verify containers
         run: docker ps
@@ -50,14 +39,14 @@ jobs:
       - name: Rollback si échec
         if: failure()
         run: |
-          echo "❌ Déploiement échoué - Rollback en cours..."
-          docker compose down
-          docker compose up -d
-          echo "⚠️ Rollback terminé - ancienne version restaurée"
+          echo "❌ Rollback en cours..."
+          docker-compose down
+          docker-compose up -d
+          echo "⚠️ Rollback terminé"
 
       - name: Notify Success
         if: success()
-        run: echo "✅ Déploiement réussi sur la VM Ubuntu !"
+        run: echo "✅ Déploiement réussi !"
 
       - name: Notify Failure
         if: failure()

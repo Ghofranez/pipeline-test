@@ -69,4 +69,4 @@ jobs:
 
       - name: Notify CI Failure
         if: failure()
-        run: echo "❌ CI échouée - Deploy bloqué !"
+        run: echo " CI échouée - Deploy bloqué !"
