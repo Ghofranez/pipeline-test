@@ -1,12 +1,10 @@
-soft_fail: false
-
+soft-fail: false
 directory: "."
-
-
-skip_checks: "CKV_AWS_20,CKV_K8S_21"
-
-
-skip_paths: "tests/**,frontend/build/**,docs/**,.venv/**"
-
-
-output_format: "sarif"
+skip-check:
+  - CKV_AWS_20
+  - CKV_K8S_21
+skip-path:
+  - tests/**
+  - frontend/build/**
+  - docs/**
+  - .venv/**
