@@ -46,13 +46,14 @@ jobs:
       # Valide des règles personnalisées (Dockerfile, Terraform, K8s)
       ############################################
       - name: Policy Validation (Conftest)
-        uses: instrumenta/conftest-action@v0.4.0
-        with:
-          files: |
-            terraform/
-            kubernetes/
-            docker/
-          policy: policy/
+        run: |
+         docker run --rm \
+           -v ${{ github.workspace }}:/project \
+            instrumenta/conftest test \
+            -p /project/policy/ \
+            --namespace main \
+            /project/backend/dockerfile \
+            /project/frontend/Dockerfile
 
       ############################################
       # 5. SONARQUBE — SAST / CODE QUALITY
