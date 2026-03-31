@@ -1,5 +1,6 @@
 name: CD - Deploy Docker App
-
+permissions:
+  contents: read
 on:
   workflow_run:
     workflows: ["Build and Test"]
