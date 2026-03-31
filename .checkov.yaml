@@ -4,7 +4,7 @@ skip-check:
   - CKV_AWS_20
   - CKV_K8S_21
 skip-path:
-  - tests/**
-  - frontend/build/**
-  - docs/**
-  - .venv/**
+  - tests
+  - frontend/build
+  - docs
+  - .venv
