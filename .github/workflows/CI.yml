@@ -35,9 +35,9 @@ jobs:
       - name: IaC Scan (Checkov)
         uses: bridgecrewio/checkov-action@v12
         with:
-          directory: .
+          directory: "."
           soft_fail: false
-          #extra_args: "-f .checkov.yaml "   # fichier de config optionnel
+          config_file: "checkov.yaml"
 
       ############################################
       # 4. POLICY AS CODE — CONFTEST

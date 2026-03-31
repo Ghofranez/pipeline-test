@@ -1,14 +1,12 @@
-# Comportement soft_fail : échoue le pipeline si true ou juste warning si false
 soft_fail: false
 
-# Dossier à scanner
-directory: .
+directory: "."
 
 # Exclusions pour éviter les faux positifs
-skip_checks: "CKV_AWS_20,CKV_K8S_21"   # séparer par des virgules pour Checkov Action
+skip_checks: "CKV_AWS_20,CKV_K8S_21"
 
 # Fichiers / dossiers à ignorer
-skip_paths: "tests/**,frontend/build/**,docs/**,.venv/**"  # séparer par des virgules pour Checkov Action
+skip_paths: "tests/**,frontend/build/**,docs/**,.venv/**"
 
 # Format de sortie
-output_format: sarif
+output_format: "sarif"
