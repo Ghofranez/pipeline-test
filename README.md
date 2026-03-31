@@ -127,10 +127,19 @@ git branch                          # Vérifier le nom du branche
 git push -u origin $nomdubranche    # envoie tes sauvegardes locales vers GitHub sur la branche choisie
 
 # Infrastructure (Déploiment)
-Pour le déploiement, j'utilise une machine virtuelle Ubuntu-server (VirtualBox) sur laquelle tourne à la fois le runner GitHub Actions (self-hosted) et le serveur Nginx.
+Pour le déploiement, j'utilise une machine virtuelle Ubuntu-server (VirtualBox) sur
+
+laquelle tourne à la fois le runner GitHub Actions (self-hosted) et le serveur Nginx.
+
 > Voici toutes les étapes que j'ai suivies pour tout configurer :
-1- Préparer la VM Ubuntu:Mettre à jour le système et installer les outils de base (curl git)
+
+1- Préparer la VM Ubuntu:Mettre à jour le système et installer les outils de base (curl
+git)
+
 2- Installer Docker sur la VM et vérifier que Docker fonctionne: Docker est nécessaire pour lancer les containers de l'application sur le serveur
+
 3- Configurer le runnerself-hosted GitHub Actions et lancer le runner en tant que service: Le runner self-hosted permet à GitHub Actions de lancer le déploiement directement sur ma VM au lieu des serveurs de GitHub.
+
 > J'ai utilisé un runner self-hosted parce que ma VM est en local sur VirtualBox, donc GitHub ne peut pas y accéder directement. Le runner est installé sur la VM pour qu'il écoute GitHub et exécute le déploiement de mon côté.
+
 4- Installer et configurer Nginx:Nginx sert de reverse proxy : il reçoit les requêtes et les redirige vers le bon service (React sur le port 3000 ou FastAPI sur le port 8000).
