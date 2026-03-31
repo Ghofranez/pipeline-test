@@ -93,17 +93,17 @@ jobs:
       - name: SBOM Backend
         uses: anchore/sbom-action@v0.24.0
         with:
-          image: ghcr.io/${{ github.repository_owner }}/my-backend:latest
+          image: ghcr.io/ghofranez/my-backend:latest
           format: cyclonedx-json
           output-file: sbom-backend.json
 
       - name: SBOM Frontend
         uses: anchore/sbom-action@v0.24.0
         with:
-          image: ghcr.io/${{ github.repository_owner }}/my-frontend:latest
+          image: ghcr.io/ghofranez/my-frontend:latest
           format: cyclonedx-json
           output-file: sbom-frontend.json
-
+          
       ############################################
       # 8. SIGNATURE DES IMAGES — COSIGN
       ############################################
