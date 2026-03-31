@@ -31,7 +31,7 @@ jobs:
             echo "Waiting for backend..."
             sleep 3
           done
-          echo "✅ Backend opérationnel !"
+          echo " Backend opérationnel !"
 
       - name: Verify containers
         run: docker ps
@@ -39,15 +39,15 @@ jobs:
       - name: Rollback si échec
         if: failure()
         run: |
-          echo "❌ Rollback en cours..."
+          echo " Rollback en cours..."
           docker-compose down
           docker-compose up -d
-          echo "⚠️ Rollback terminé"
+          echo " Rollback terminé"
 
       - name: Notify Success
         if: success()
-        run: echo "✅ Déploiement réussi !"
+        run: echo " Déploiement réussi !"
 
       - name: Notify Failure
         if: failure()
-        run: echo "❌ Déploiement échoué !"
+        run: echo "Déploiement échoué !"
