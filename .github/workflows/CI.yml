@@ -1,5 +1,7 @@
 name: CI Full External Security
-
+permissions:
+  contents: read
+  security-events: write   # nécessaire pour upload SARIF
 on:
   push:
     branches: [ master ]
