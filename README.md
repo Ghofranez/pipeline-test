@@ -15,13 +15,21 @@ c'est une application web simple avec:
 - GitHub Actions
 # Structure de projet:
 pipeline-test/
+
 ├── .github/
+
 │   └── workflows/       # les fichiers CI/CD
+
 ├── backend/             # API FastAPI + Python
+
 ├── frontend/            # Application React
+
 ├── docker-compose.yml   # Orchestre des services
+
 ├── .env.example         # Remplace par .env
+
 └── README.md
+
 # Comment lancer le projet
 1- Cloner le repo:
 - git clone https://github.com/Ghofranez/pipeline-test.git
@@ -29,50 +37,93 @@ pipeline-test/
 2- Créer le fichier .env
 - Le fichier .env doit contenir :
 MYSQL_ROOT_PASSWORD=rootpassword
+
 MYSQL_USER=user
+
 MYSQL_PASSWORD=userpassword
+
 MYSQL_DATABASE=mydb
 
 BACKEND_DB_HOST=db
+
 BACKEND_DB_PORT=3306
+
 BACKEND_DB_USER=user
+
 BACKEND_DB_PASSWORD=userpassword
+
 BACKEND_DB_NAME=mydb
+
 ## Pour test local il faut installer docker et lancer manuellement:
 3- Installer Docker Desktop:Docker Desktop inclut Docker et Docker Compose
 - Windows / Mac: https://docs.docker.com/desktop/setup/install/windows-install/
 - Linux (Ubuntu) :
+
 sudo apt update
+
 sudo apt install docker.io docker-compose-plugin -y
+
 sudo systemctl start docker
+
 -> vérification de l'installation:
+
 docker --version
+
 docker compose version
+
 4- Lancer avec Docker Compose:
+
 docker compose up --build
+
 5- Vérifier les port :
+
 docker compose ps
+
 - L'application sera disponible sur :
+
 > Frontend      -> http://localhost:3000
+
 > Backend (API) -> http://localhost:8000
+
 6- Pour arreter :
+
 docker compose down
+
 # Pipeline CI/CD
+
 J'ai configuré deux workflows GitHub Actions :
-- CI : à chaque push, il installe les dépendances, lance les tests et build les images Docker en intégrant outils de sécurité a chaque test .
-- CD : si le CI passe, il déploie automatiquement en intégrant outils de sécurité a chaque étapes de test.
+
+- CI : à chaque push, il installe les dépendances, lance les tests et build les images
+
+Docker en intégrant outils de sécurité a chaque test .
+
+- CD : si le CI passe, il déploie automatiquement en intégrant outils de sécurité a
+
+chaque étapes de test.
+
 # Lancement automatiques des pipelines (CI/CD):
+
 - À chaque git push, le pipeline GitHub Actions s'occupe automatiquement de tout :
+
 > git push → CI (tests + build) → CD (déploiement automatique):
 - connecter vscode avec github
 - Installer Github CLI :  sudo apt install gh
 - Connecter a GitHub CLI aprés faire la création du repository et push le projet:
+
 gh repo create $project --public --source=. --push # creation de repository sur GitHub
+
 git  init
-git add .                        #  sélectionne tous les fichiers modifiés pour les préparer à être sauvegardés
-git commit -m ""                 # sauvegarde les fichiers sélectionnés avec un message qui décrit ce que tu as fait
+
+git add .                           #  sélectionne tous les fichiers modifiés pour les
+préparer à être sauvegardés
+
+git commit -m ""                    # sauvegarde les fichiers sélectionnés avec un message
+qui décrit ce que tu as fait
+
 git remote add origin https://github.com/Ghofranez/project-test.git
-git branch # Vérifier le nom du branche
+
+git branch                          # Vérifier le nom du branche
+
 git push -u origin $nomdubranche    # envoie tes sauvegardes locales vers GitHub sur la branche choisie
 
 # Infrastructure (Déploiment)
