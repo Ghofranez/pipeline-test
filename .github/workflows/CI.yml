@@ -1,4 +1,4 @@
-name: Build and Test
+name: CI Full External Security
 
 on:
   push:
@@ -8,50 +8,179 @@ on:
 
 jobs:
 
+  ############################################################
+  # JOB 1 — BUILD ET SCANS INITIAUX (Secrets, IaC, Policy)
+  ############################################################
   build:
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout code
+
+      ############################################
+      # 1. CHECKOUT DU CODE
+      ############################################
+      - name: Checkout
         uses: actions/checkout@v4
 
+      ############################################
+      # 2. SECRET SCANNING — GITLEAKS
+      # Vérifie si des secrets sont exposés dans le code source
+      ############################################
+      - name: Secret Scan (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          fail: true
+          config-path: .gitleaks.toml  # Fichier optionnel mais recommandé
+
+      ############################################
+      # 3. IaC SECURITY — CHECKOV
+      # Analyse Terraform / Kubernetes / Docker pour configurations risquées
+      ############################################
+      - name: IaC Scan (Checkov)
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          soft_fail: false
+          #extra_args: "-f .checkov.yaml "   # fichier de config optionnel
+
+      ############################################
+      # 4. POLICY AS CODE — CONFTEST
+      # Valide des règles personnalisées (Dockerfile, Terraform, K8s)
+      ############################################
+      - name: Policy Validation (Conftest)
+        uses: instrumenta/conftest-action@v0.4.0
+        with:
+          files: |
+            terraform/
+            kubernetes/
+            docker/
+          policy: policy/
+
+      ############################################
+      # 5. SONARQUBE — SAST / CODE QUALITY
+      # Analyse statique de code, qualité, bugs, code smells
+      ############################################
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      ############################################
+      # 6. DOCKER BUILD — Construction des images
+      ############################################
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build images
+      - name: Build Docker images
         run: docker compose build
 
-      - name: Start containers
+      ############################################
+      # 7. SBOM (CycloneDX) — Génération SBOM pour backend et frontend
+      ############################################
+      - name: SBOM Backend
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          image: my-backend:latest
+          format: cyclonedx-json
+          output-file: sbom-backend.json
+
+      - name: SBOM Frontend
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          image: my-frontend:latest
+          format: cyclonedx-json
+          output-file: sbom-frontend.json
+
+      ############################################
+      # 8. SIGNATURE DES IMAGES — COSIGN
+      ############################################
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign Docker Images (Cosign)
+        env:
+          COSIGN_KEY: ${{ secrets.COSIGN_KEY }}
+        run: |
+          cosign sign --key env://COSIGN_KEY my-backend:latest
+          cosign sign --key env://COSIGN_KEY my-frontend:latest
+
+      ############################################
+      # 9. DÉMARRAGE DES SERVICES POUR TESTS
+      ############################################
+      - name: Start Compose
         run: docker compose up -d
 
-      - name: Wait for backend
+      - name: Wait backend
         run: |
           until curl -s http://localhost:8000/; do
-            echo "Waiting for backend..."
+            echo "Waiting backend..."
             sleep 2
           done
 
-      - name: Test backend health
+      - name: Health Check Backend
         run: curl -f http://localhost:8000/
 
+      - name: Health Check Frontend
+        run: curl -f http://localhost:3000/  # port React dev server
+
+  ############################################################
+  # JOB 2 — SCANS DE SECURITE COMPLÉMENTAIRES (Snyk + Trivy)
+  ############################################################
   security-scan:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout code
+
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build images pour scan
+      - name: Build Docker images for scan
         run: docker compose build
 
-      - name: Trivy scan - Code
+      ############################################
+      # 10. SNYK — SCA + Container + Code
+      ############################################
+      # Backend Python
+      - name: Snyk Backend Scan (Python)
+        uses: snyk/actions/python@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+
+      # Frontend Node/React
+      - name: Snyk Frontend Scan (Node)
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+
+      # Container scan
+      - name: Snyk Container Scan
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: my-backend:latest
+          args: --severity-threshold=high
+
+      ############################################
+      # 11. TRIVY — Code scan
+      ############################################
+      - name: Trivy Code Scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           scan-ref: .
           severity: CRITICAL,HIGH
           exit-code: 1
+        
 
-      - name: Trivy scan - Backend
+      ############################################
+      # 12. TRIVY — Image scan
+      ############################################
+      - name: Trivy Backend Image
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: image
@@ -59,7 +188,7 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: 1
 
-      - name: Trivy scan - Frontend
+      - name: Trivy Frontend Image
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: image
@@ -67,6 +196,9 @@ jobs:
           severity: CRITICAL
           exit-code: 1
 
+      ############################################
+      # 13. NOTIFICATION
+      ############################################
       - name: Notify CI Failure
         if: failure()
-        run: echo " CI échouée - Deploy bloqué !"
+        run: echo "CI échouée – sécurité non conforme."

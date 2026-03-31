@@ -1,0 +1,17 @@
+# Comportement soft_fail : échoue le pipeline si true ou juste warning si false
+soft_fail: false
+
+# Dossier à scanner
+directory: .
+
+# Exclusions pour éviter faux positifs
+skip_checks:
+  - CKV_AWS_20      # Ports SSH ouverts sur 0.0.0.0/0
+  - CKV_K8S_21      # Limite CPU/mémoire non définie dans pods de test
+
+# Fichiers / dossiers à ignorer
+skip_paths:
+  - "tests/**"
+  - "frontend/build/**"
+  - "docs/**"
+  - ".venv/**"
