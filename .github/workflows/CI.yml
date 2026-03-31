@@ -77,33 +77,39 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set image names
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "BACKEND_IMAGE=ghcr.io/${OWNER}/my-backend:latest" >> $GITHUB_ENV
+          echo "FRONTEND_IMAGE=ghcr.io/${OWNER}/my-frontend:latest" >> $GITHUB_ENV
+
       - name: Build Docker images
         run: docker compose build
 
       - name: Push Docker images to GHCR
         run: |
-          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          docker tag my-backend:latest ghcr.io/${OWNER}/my-backend:latest
-          docker tag my-frontend:latest ghcr.io/${OWNER}/my-frontend:latest
-          docker push ghcr.io/${OWNER}/my-backend:latest
-          docker push ghcr.io/${OWNER}/my-frontend:latest
+          docker tag my-backend:latest ${{ env.BACKEND_IMAGE }}
+          docker tag my-frontend:latest ${{ env.FRONTEND_IMAGE }}
+          docker push ${{ env.BACKEND_IMAGE }}
+          docker push ${{ env.FRONTEND_IMAGE }}
+
       ############################################
       # 7. SBOM (CycloneDX)
       ############################################
       - name: SBOM Backend
         uses: anchore/sbom-action@v0.24.0
         with:
-          image: ghcr.io/ghofranez/my-backend:latest
+          image: ${{ env.BACKEND_IMAGE }}
           format: cyclonedx-json
           output-file: sbom-backend.json
 
       - name: SBOM Frontend
         uses: anchore/sbom-action@v0.24.0
         with:
-          image: ghcr.io/ghofranez/my-frontend:latest
+          image: ${{ env.FRONTEND_IMAGE }}
           format: cyclonedx-json
           output-file: sbom-frontend.json
-          
+
       ############################################
       # 8. SIGNATURE DES IMAGES — COSIGN
       ############################################
@@ -114,8 +120,8 @@ jobs:
         env:
           COSIGN_KEY: ${{ secrets.COSIGN_KEY }}
         run: |
-          cosign sign --key env://COSIGN_KEY ghcr.io/${{ github.repository_owner }}/my-backend:latest
-          cosign sign --key env://COSIGN_KEY ghcr.io/${{ github.repository_owner }}/my-frontend:latest
+          cosign sign --key env://COSIGN_KEY ${{ env.BACKEND_IMAGE }}
+          cosign sign --key env://COSIGN_KEY ${{ env.FRONTEND_IMAGE }}
 
       ############################################
       # 9. DÉMARRAGE DES SERVICES POUR TESTS
@@ -154,6 +160,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set image names
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "BACKEND_IMAGE=ghcr.io/${OWNER}/my-backend:latest" >> $GITHUB_ENV
+          echo "FRONTEND_IMAGE=ghcr.io/${OWNER}/my-frontend:latest" >> $GITHUB_ENV
+
       - name: Build Docker images for scan
         run: docker compose build
 
@@ -179,7 +191,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          image: ghcr.io/${{ github.repository_owner }}/my-backend:latest
+          image: ${{ env.BACKEND_IMAGE }}
           args: --severity-threshold=high
 
       ############################################
@@ -200,7 +212,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: image
-          image-ref: ghcr.io/${{ github.repository_owner }}/my-backend:latest
+          image-ref: ${{ env.BACKEND_IMAGE }}
           severity: CRITICAL,HIGH
           exit-code: 1
 
@@ -208,7 +220,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: image
-          image-ref: ghcr.io/${{ github.repository_owner }}/my-frontend:latest
+          image-ref: ${{ env.FRONTEND_IMAGE }}
           severity: CRITICAL
           exit-code: 1
 
