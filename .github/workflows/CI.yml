@@ -37,7 +37,7 @@ jobs:
         with:
           directory: "."
           soft_fail: false
-          config_file: "checkov.yaml"
+          config_file: " .checkov.yaml"
 
       ############################################
       # 4. POLICY AS CODE — CONFTEST
