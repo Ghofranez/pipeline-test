@@ -27,10 +27,7 @@ jobs:
       ############################################
       - name: Secret Scan (Gitleaks)
         uses: gitleaks/gitleaks-action@v2
-        with:
-          fail: true
-          config-path: .gitleaks.toml  # Fichier optionnel mais recommandé
-
+        continue-on-error: false
       ############################################
       # 3. IaC SECURITY — CHECKOV
       # Analyse Terraform / Kubernetes / Docker pour configurations risquées
@@ -175,7 +172,7 @@ jobs:
           scan-ref: .
           severity: CRITICAL,HIGH
           exit-code: 1
-        
+
 
       ############################################
       # 12. TRIVY — Image scan
