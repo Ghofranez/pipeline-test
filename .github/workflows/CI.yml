@@ -120,8 +120,8 @@ jobs:
         env:
           COSIGN_KEY: ${{ secrets.COSIGN_KEY }}
         run: |
-          cosign sign --key env://COSIGN_KEY ${{ env.BACKEND_IMAGE }}
-          cosign sign --key env://COSIGN_KEY ${{ env.FRONTEND_IMAGE }}
+          cosign sign --yes --key env://COSIGN_KEY ${{ env.BACKEND_IMAGE }}
+          cosign sign --yes --key env://COSIGN_KEY ${{ env.FRONTEND_IMAGE }}
 
       ############################################
       # 9. DÉMARRAGE DES SERVICES POUR TESTS
