@@ -178,6 +178,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
+          args: --file=backend/requirements.txt
 
       - name: Snyk Frontend Scan (Node)
         uses: snyk/actions/node@master
@@ -185,6 +186,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
+          args: --file=frontend/package.json
 
       - name: Snyk Container Scan
         uses: snyk/actions/docker@master
@@ -192,8 +194,8 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           image: ${{ env.BACKEND_IMAGE }}
-          args: --severity-threshold=high
-
+          args: --file=backend/dockerfile --severity-threshold=high
+          
       ############################################
       # 11. TRIVY — Code scan
       ############################################
