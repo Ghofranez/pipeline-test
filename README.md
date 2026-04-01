@@ -16,12 +16,12 @@ c'est une application web simple avec:
 
 # Pipeline de sécurité :
 - GitHub Actions
-- Gitleaks v2 — détection de secrets
-- Checkov 3.2.513 — sécurité des fichiers de configuration
+- Gitleaks  — détection de secrets
+- Checkov  — sécurité des fichiers de configuration
 - Conftest — validation de règles personnalisées
-- SonarCloud — qualité du code
-- Anchore Syft 1.42.3 — génération SBOM
-- Cosign v3 — signature des images Docker
+- SonarQube — qualité du code
+- Anchore Syft — génération SBOM
+- Cosign  — signature des images Docker
 - Snyk — vulnérabilités des dépendances
 - Trivy — scan des images Docker
 - Nginx — reverse proxy pour le déploiement
