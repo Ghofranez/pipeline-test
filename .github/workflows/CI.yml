@@ -172,6 +172,9 @@ jobs:
       ############################################
       # 10. SNYK — SCA + Container + Code
       ############################################
+      - name: Install Python dependencies
+        run: pip install -r backend/requirements.txt
+
       - name: Snyk Backend Scan (Python)
         uses: snyk/actions/python@master
         env:
@@ -179,7 +182,7 @@ jobs:
         with:
           command: test
           args: --file=backend/requirements.txt
-
+          
       - name: Snyk Frontend Scan (Node)
         uses: snyk/actions/node@master
         env:
@@ -195,7 +198,7 @@ jobs:
         with:
           image: ${{ env.BACKEND_IMAGE }}
           args: --file=backend/dockerfile --severity-threshold=high
-          
+
       ############################################
       # 11. TRIVY — Code scan
       ############################################
