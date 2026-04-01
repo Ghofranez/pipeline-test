@@ -15,7 +15,8 @@ jobs:
   ############################################################
   # JOB 1 — BUILD ET SCANS INITIAUX (Secrets, IaC, Policy)
   ############################################################
-  build:
+  build-scan:
+    name: "BUILD ET SCANS INITIAUX"
     runs-on: ubuntu-24.04
     steps:
 
@@ -146,7 +147,8 @@ jobs:
   # JOB 2 — SCANS DE SECURITE COMPLÉMENTAIRES (Snyk + Trivy)
   ############################################################
   security-scan:
-    needs: build
+    name: SCANS DE SECURITE COMPLÉMENTAIRES
+    needs: build-scan
     runs-on: ubuntu-24.04
     steps:
 

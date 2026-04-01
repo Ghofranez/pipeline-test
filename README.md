@@ -145,7 +145,7 @@ Il suffit d'ajouter ce step dans le fichier CI.yml
 
 - Checkov — Sécurité des fichiers Docker et de configuration: Checkov analyse les Dockerfiles et autres fichiers de configuration pour détecter des mauvaises pratiques de sécurité, par exemple un container qui tourne en root ou un port sensible ouvert.
 
-Il faut créer un fichier .checkov.yaml à la racine du projet. ##
+Il faut créer un fichier .checkov.yaml à la racine du projet. ## configure Checkov pour savoir quels fichiers scanner et quelles règles de sécurité appliquer.
 
 et ajouter ce step dans CI.yml
 
@@ -153,7 +153,7 @@ et ajouter ce step dans CI.yml
 
 Les règles se placent dans le dossier policy/ dans un fichier '.rego' . Ensuite on ajoute ce step dans CI.yml
 
-- SonarCloud — Qualité et sécurité du code: SonarCloud analyse le code source pour trouver des bugs, des vulnérabilités et du code mal écrit.
+- SonarQube — Qualité et sécurité du code: SonarCloud analyse le code source pour trouver des bugs, des vulnérabilités et du code mal écrit.
 
 Il faut créer un compte sur sonarcloud.io (connexion avec GitHub ).
 
@@ -170,7 +170,7 @@ Il faut créer un compte sur sonarcloud.io (connexion avec GitHub ).
 5- Copier le token généré et l'ajouter dans GitHub Secrets sous le nom "SONAR_TOKEN"
 >> Remarque: Le projet doit être créé manuellement sur SonarCloud avant le premier lancement du pipeline, sinon il échoue avec une erreur "project not found".
 
-Créer le fichier sonar-project.properties à la racine #
+Créer le fichier sonar-project.properties à la racine ## c’est le fichier de configuration qui permet à SonarQube d’analyser correctement ton projet
 
 Puis ajouter ce step dans CI.yml
 
