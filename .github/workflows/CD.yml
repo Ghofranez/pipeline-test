@@ -12,9 +12,53 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: self-hosted
     steps:
+
+      ############################################
+      # 1. CHECKOUT DU CODE
+      ############################################
       - name: Checkout code
         uses: actions/checkout@v4.2.2
 
+      ############################################
+      # 2. VERIFICATION SIGNATURE — COSIGN
+      # Vérifie que les images sont signées avant deploy
+      ############################################
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Set image names
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "BACKEND_IMAGE=ghcr.io/${OWNER}/my-backend:latest" >> $GITHUB_ENV
+          echo "FRONTEND_IMAGE=ghcr.io/${OWNER}/my-frontend:latest" >> $GITHUB_ENV
+
+      - name: Verify Backend Image (Cosign)
+        env:
+          COSIGN_PUBLIC_KEY: ${{ secrets.COSIGN_PUBLIC_KEY }}
+        run: |
+          echo "$COSIGN_PUBLIC_KEY" > cosign.pub
+          cosign verify --key cosign.pub ${{ env.BACKEND_IMAGE }}
+          if [ $? -ne 0 ]; then
+            echo "Image backend non signée — déploiement stoppé !"
+            exit 1
+          fi
+          echo "Image backend vérifiée"
+
+      - name: Verify Frontend Image (Cosign)
+        env:
+          COSIGN_PUBLIC_KEY: ${{ secrets.COSIGN_PUBLIC_KEY }}
+        run: |
+          cosign verify --key cosign.pub ${{ env.FRONTEND_IMAGE }}
+          if [ $? -ne 0 ]; then
+            echo "Image frontend non signée — déploiement stoppé !"
+            exit 1
+          fi
+          echo "Image frontend vérifiée"
+
+      ############################################
+      # 3. DEPLOIEMENT
+      # Ne se lance que si Cosign réussit
+      ############################################
       - name: Execute Deployment Script
         run: |
           echo "=== DÉBUT DU DÉPLOIEMENT ==="
@@ -26,28 +70,91 @@ jobs:
           docker ps
           echo "=== DÉPLOIEMENT TERMINÉ ==="
 
-      - name: Health check après deploy
+      ############################################
+      # 4. HEALTH CHECK
+      # Ne se lance que si le déploiement réussit
+      ############################################
+      - name: Health Check après deploy
         run: |
           until curl -sf http://localhost:8000/; do
             echo "Waiting for backend..."
             sleep 3
           done
-          echo " Backend opérationnel !"
+          echo "Backend opérationnel !"
 
+      ############################################
+      # 5. OWASP ZAP — DAST
+      # Tourne en Docker, aucune installation requise
+      # Ne se lance que si Health Check réussit
+      ############################################
+      - name: OWASP ZAP Scan (DAST)
+        run: |
+          docker run --rm \
+            --network host \
+            -v ${{ github.workspace }}/zap-report:/zap/wrk \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t http://localhost:8000 \
+            -r zap-report.html \
+            -I \
+            -J zap-report.json \
+            -l WARN
+
+      - name: Vérification résultats ZAP
+        run: |
+          CRITICAL=$(cat ${{ github.workspace }}/zap-report/zap-report.json | grep -c '"riskcode":"3"')
+          if [ "$CRITICAL" -gt "0" ]; then
+            echo " ZAP détecte $CRITICAL failles CRITICAL — déploiement stoppé !"
+            exit 1
+          fi
+          echo "Aucune faille critique détectée par ZAP"
+
+      - name: Upload ZAP Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: zap-report/zap-report.html
+
+      ############################################
+      # 6. VERIFICATION FALCO — RUNTIME SECURITY
+      # Ne se lance que si ZAP réussit
+      # Falco doit être installé sur le serveur self-hosted
+      ############################################
+      - name: Vérification Falco
+        run: |
+          ALERTS=$(sudo journalctl -u falco --since "2 minutes ago" | grep -i "critical")
+          if [ -n "$ALERTS" ]; then
+            echo "Falco détecte une menace critique !"
+            echo "$ALERTS"
+            exit 1
+          fi
+          echo "Aucune alerte Falco critique"
+
+      ############################################
+      # 7. VERIFY CONTAINERS
+      ############################################
       - name: Verify containers
         run: docker ps
 
+      ############################################
+      # 8. ROLLBACK SI ECHEC
+      # Se déclenche si n'importe quelle étape échoue
+      ############################################
       - name: Rollback si échec
         if: failure()
         run: |
-          echo " Rollback en cours..."
+          echo "Rollback en cours..."
           docker-compose down
           docker-compose up -d
-          echo " Rollback terminé"
+          echo "Rollback terminé"
 
+      ############################################
+      # 9. NOTIFICATIONS
+      ############################################
       - name: Notify Success
         if: success()
-        run: echo " Déploiement réussi !"
+        run: echo "Déploiement réussi !"
 
       - name: Notify Failure
         if: failure()

@@ -27,14 +27,16 @@ jobs:
         uses: actions/checkout@v4
 
       ############################################
-      # 2. SECRET SCANNING — GITLEAKS
+      # 2. SECRET SCANNING — GITLEAKS + SARIF
       ############################################
       - name: Secret Scan (Gitleaks)
         uses: gitleaks/gitleaks-action@v2
         continue-on-error: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # ← upload SARIF automatique
 
       ############################################
-      # 3. IaC SECURITY — CHECKOV
+      # 3. IaC SECURITY — CHECKOV + SARIF
       ############################################
       - name: IaC Scan (Checkov)
         uses: bridgecrewio/checkov-action@v12
@@ -42,6 +44,15 @@ jobs:
           directory: "."
           soft_fail: false
           config_file: ".checkov.yaml"
+          output_format: sarif                       # ← AJOUTÉ
+          output_file_path: checkov.sarif            # ← AJOUTÉ
+
+      - name: Upload Checkov SARIF                   # ← AJOUTÉ
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: checkov.sarif
+          category: checkov
 
       ############################################
       # 4. POLICY AS CODE — CONFTEST
@@ -58,6 +69,8 @@ jobs:
 
       ############################################
       # 5. SONARQUBE — SAST / CODE QUALITY
+      # (SonarCloud publie ses résultats nativement
+      #  dans l'onglet Security via son intégration GitHub)
       ############################################
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v2
@@ -172,7 +185,7 @@ jobs:
         run: docker compose build
 
       ############################################
-      # 10. SNYK — SCA + Container + Code
+      # 10. SNYK — SCA + Container + Code + SARIF
       ############################################
       - name: Install Python dependencies
         run: pip install -r backend/requirements.txt
@@ -183,7 +196,14 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
-          args: --file=backend/requirements.txt --skip-unresolved
+          args: --file=backend/requirements.txt --skip-unresolved --sarif-file-output=snyk-backend.sarif  # ← AJOUTÉ
+
+      - name: Upload Snyk Backend SARIF            # ← AJOUTÉ
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-backend.sarif
+          category: snyk-backend
 
       - name: Snyk Frontend Scan (Node)
         uses: snyk/actions/node@master
@@ -191,7 +211,14 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
-          args: --file=frontend/package.json
+          args: --file=frontend/package.json --sarif-file-output=snyk-frontend.sarif  # ← AJOUTÉ
+
+      - name: Upload Snyk Frontend SARIF           # ← AJOUTÉ
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-frontend.sarif
+          category: snyk-frontend
 
       - name: Snyk Container Scan
         uses: snyk/actions/docker@master
@@ -199,10 +226,17 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           image: ${{ env.BACKEND_IMAGE }}
-          args: --file=backend/dockerfile --severity-threshold=high
+          args: --file=backend/dockerfile --severity-threshold=high --sarif-file-output=snyk-container.sarif  # ← AJOUTÉ
+
+      - name: Upload Snyk Container SARIF          # ← AJOUTÉ
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-container.sarif
+          category: snyk-container
 
       ############################################
-      # 11. TRIVY — Code scan
+      # 11. TRIVY — Code scan + SARIF
       ############################################
       - name: Trivy Code Scan
         uses: aquasecurity/trivy-action@master
@@ -211,9 +245,18 @@ jobs:
           scan-ref: .
           severity: CRITICAL,HIGH
           exit-code: 1
+          format: sarif                              # ← AJOUTÉ
+          output: trivy-fs.sarif                    # ← AJOUTÉ
+
+      - name: Upload Trivy Code SARIF               # ← AJOUTÉ
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-code
 
       ############################################
-      # 12. TRIVY — Image scan
+      # 12. TRIVY — Image scan + SARIF
       ############################################
       - name: Trivy Backend Image
         uses: aquasecurity/trivy-action@master
@@ -222,6 +265,15 @@ jobs:
           image-ref: ${{ env.BACKEND_IMAGE }}
           severity: CRITICAL,HIGH
           exit-code: 1
+          format: sarif                              # ← AJOUTÉ
+          output: trivy-backend.sarif               # ← AJOUTÉ
+
+      - name: Upload Trivy Backend SARIF            # ← AJOUTÉ
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-backend.sarif
+          category: trivy-backend
 
       - name: Trivy Frontend Image
         uses: aquasecurity/trivy-action@master
@@ -230,6 +282,15 @@ jobs:
           image-ref: ${{ env.FRONTEND_IMAGE }}
           severity: CRITICAL
           exit-code: 1
+          format: sarif                              # ← AJOUTÉ
+          output: trivy-frontend.sarif              # ← AJOUTÉ
+
+      - name: Upload Trivy Frontend SARIF           # ← AJOUTÉ
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-frontend.sarif
+          category: trivy-frontend
 
       ############################################
       # 13. NOTIFICATION
