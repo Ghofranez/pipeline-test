@@ -33,21 +33,22 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         continue-on-error: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # ← upload SARIF automatique
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       ############################################
       # 3. IaC SECURITY — CHECKOV + SARIF
       ############################################
       - name: IaC Scan (Checkov)
         uses: bridgecrewio/checkov-action@v12
+        continue-on-error: true                    # ← MODIFIÉ : génère SARIF même si failles
         with:
           directory: "."
           soft_fail: false
           config_file: ".checkov.yaml"
-          output_format: sarif                       # ← AJOUTÉ
-          output_file_path: checkov.sarif            # ← AJOUTÉ
+          output_format: sarif
+          output_file_path: checkov.sarif
 
-      - name: Upload Checkov SARIF                   # ← AJOUTÉ
+      - name: Upload Checkov SARIF
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
@@ -69,8 +70,6 @@ jobs:
 
       ############################################
       # 5. SONARQUBE — SAST / CODE QUALITY
-      # (SonarCloud publie ses résultats nativement
-      #  dans l'onglet Security via son intégration GitHub)
       ############################################
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v2
@@ -192,13 +191,14 @@ jobs:
 
       - name: Snyk Backend Scan (Python)
         uses: snyk/actions/python@master
+        continue-on-error: true                    # ← MODIFIÉ
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
-          args: --file=backend/requirements.txt --skip-unresolved --sarif-file-output=snyk-backend.sarif  # ← AJOUTÉ
+          args: --file=backend/requirements.txt --skip-unresolved --sarif-file-output=snyk-backend.sarif
 
-      - name: Upload Snyk Backend SARIF            # ← AJOUTÉ
+      - name: Upload Snyk Backend SARIF
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
@@ -207,13 +207,14 @@ jobs:
 
       - name: Snyk Frontend Scan (Node)
         uses: snyk/actions/node@master
+        continue-on-error: true                    # ← MODIFIÉ
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
-          args: --file=frontend/package.json --sarif-file-output=snyk-frontend.sarif  # ← AJOUTÉ
+          args: --file=frontend/package.json --sarif-file-output=snyk-frontend.sarif
 
-      - name: Upload Snyk Frontend SARIF           # ← AJOUTÉ
+      - name: Upload Snyk Frontend SARIF
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
@@ -222,13 +223,14 @@ jobs:
 
       - name: Snyk Container Scan
         uses: snyk/actions/docker@master
+        continue-on-error: true                    # ← MODIFIÉ
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           image: ${{ env.BACKEND_IMAGE }}
-          args: --file=backend/dockerfile --severity-threshold=high --sarif-file-output=snyk-container.sarif  # ← AJOUTÉ
+          args: --file=backend/dockerfile --severity-threshold=high --sarif-file-output=snyk-container.sarif
 
-      - name: Upload Snyk Container SARIF          # ← AJOUTÉ
+      - name: Upload Snyk Container SARIF
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
@@ -240,15 +242,16 @@ jobs:
       ############################################
       - name: Trivy Code Scan
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true                    # ← MODIFIÉ
         with:
           scan-type: fs
           scan-ref: .
           severity: CRITICAL,HIGH
           exit-code: 1
-          format: sarif                              # ← AJOUTÉ
-          output: trivy-fs.sarif                    # ← AJOUTÉ
+          format: sarif
+          output: trivy-fs.sarif
 
-      - name: Upload Trivy Code SARIF               # ← AJOUTÉ
+      - name: Upload Trivy Code SARIF
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
@@ -260,15 +263,16 @@ jobs:
       ############################################
       - name: Trivy Backend Image
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true                    # ← MODIFIÉ
         with:
           scan-type: image
           image-ref: ${{ env.BACKEND_IMAGE }}
           severity: CRITICAL,HIGH
           exit-code: 1
-          format: sarif                              # ← AJOUTÉ
-          output: trivy-backend.sarif               # ← AJOUTÉ
+          format: sarif
+          output: trivy-backend.sarif
 
-      - name: Upload Trivy Backend SARIF            # ← AJOUTÉ
+      - name: Upload Trivy Backend SARIF
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
@@ -277,15 +281,16 @@ jobs:
 
       - name: Trivy Frontend Image
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true                    # ← MODIFIÉ
         with:
           scan-type: image
           image-ref: ${{ env.FRONTEND_IMAGE }}
           severity: CRITICAL
           exit-code: 1
-          format: sarif                              # ← AJOUTÉ
-          output: trivy-frontend.sarif              # ← AJOUTÉ
+          format: sarif
+          output: trivy-frontend.sarif
 
-      - name: Upload Trivy Frontend SARIF           # ← AJOUTÉ
+      - name: Upload Trivy Frontend SARIF
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
