@@ -17,26 +17,28 @@ jobs:
       # 1. CHECKOUT DU CODE
       ############################################
       - name: Checkout code
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v4                          # ← FIXED: v4.2.2 n'existe pas
 
       ############################################
       # 2. VERIFICATION SIGNATURE — COSIGN
       ############################################
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@v3.7.0             # ← FIXED: tag exact requis
 
       - name: Set image names
+        id: images                                         # ← ADDED: id pour outputs statiques
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          echo "BACKEND_IMAGE=ghcr.io/${OWNER}/my-backend:latest" >> $GITHUB_ENV
-          echo "FRONTEND_IMAGE=ghcr.io/${OWNER}/my-frontend:latest" >> $GITHUB_ENV
+          echo "backend=ghcr.io/${OWNER}/my-backend:latest" >> $GITHUB_OUTPUT
+          echo "frontend=ghcr.io/${OWNER}/my-frontend:latest" >> $GITHUB_OUTPUT
+          # ↑ FIXED: GITHUB_OUTPUT + outputs nommés → résolvables statiquement par le linter
 
       - name: Verify Backend Image (Cosign)
         env:
           COSIGN_PUBLIC_KEY: ${{ secrets.COSIGN_PUBLIC_KEY }}
         run: |
           echo "$COSIGN_PUBLIC_KEY" > cosign.pub
-          cosign verify --key cosign.pub ${{ env.BACKEND_IMAGE }}
+          cosign verify --key cosign.pub ${{ steps.images.outputs.backend }}   # ← FIXED
           if [ $? -ne 0 ]; then
             echo "Image backend non signée — déploiement stoppé !"
             exit 1
@@ -47,7 +49,7 @@ jobs:
         env:
           COSIGN_PUBLIC_KEY: ${{ secrets.COSIGN_PUBLIC_KEY }}
         run: |
-          cosign verify --key cosign.pub ${{ env.FRONTEND_IMAGE }}
+          cosign verify --key cosign.pub ${{ steps.images.outputs.frontend }}  # ← FIXED
           if [ $? -ne 0 ]; then
             echo "Image frontend non signée — déploiement stoppé !"
             exit 1
@@ -56,7 +58,6 @@ jobs:
 
       ############################################
       # 3. DEPLOIEMENT
-      # Ne se lance que si Cosign réussit
       ############################################
       - name: Execute Deployment Script
         run: |
@@ -71,7 +72,6 @@ jobs:
 
       ############################################
       # 4. HEALTH CHECK
-      # Ne se lance que si le déploiement réussit
       ############################################
       - name: Health Check après deploy
         run: |
@@ -83,9 +83,8 @@ jobs:
 
       ############################################
       # 5. OWASP ZAP — DAST
-      # ← MODIFIÉ : création dossier + permissions + -I
       ############################################
-      - name: Create ZAP report directory        # ← AJOUTÉ
+      - name: Create ZAP report directory
         run: |
           mkdir -p ${{ github.workspace }}/zap-report
           chmod 777 ${{ github.workspace }}/zap-report
@@ -101,7 +100,7 @@ jobs:
             -r zap-report.html \
             -J zap-report.json \
             -l WARN \
-            -I                                   # ← AJOUTÉ : ignore warnings, bloque seulement CRITICAL
+            -I
 
       - name: Vérification résultats ZAP
         run: |
@@ -124,8 +123,7 @@ jobs:
           path: ${{ github.workspace }}/zap-report/zap-report.html
 
       ############################################
-      # 6. VERIFICATION FALCO — RUNTIME SECURITY
-      # Ne se lance que si ZAP réussit
+      # 6. VERIFICATION FALCO
       ############################################
       - name: Vérification Falco
         run: |
@@ -163,4 +161,4 @@ jobs:
 
       - name: Notify Failure
         if: failure()
-        run: echo " Déploiement échoué !"
+        run: echo "Déploiement échoué !"
