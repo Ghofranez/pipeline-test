@@ -13,33 +13,45 @@ on:
 jobs:
 
   ############################################################
-  # JOB 1 — BUILD, TESTS & SONARCLOUD
+  # JOB 1 — CHECKOUT + SECRET SCAN
   ############################################################
-  build-and-test:
-    name: Build, Tests & SonarCloud
+  secret-scan:
+    name: Secret Scan (Gitleaks)
     runs-on: ubuntu-24.04
-    outputs:
-      backend_image: ${{ steps.set_images.outputs.backend }}
-      frontend_image: ${{ steps.set_images.outputs.frontend }}
     steps:
-
       - name: Checkout
         uses: actions/checkout@v4
-
-      # Secret Scan
-      - name: Secret Scan (Gitleaks)
+      - name: Secret Scan
         uses: gitleaks/gitleaks-action@v2
 
-      # IaC Scan
-      - name: IaC Scan (Checkov)
+  ############################################################
+  # JOB 2 — IaC Scan
+  ############################################################
+  iac-scan:
+    name: IaC Scan (Checkov)
+    needs: secret-scan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: IaC Scan
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: "."
           soft_fail: false
           config_file: ".checkov.yaml"
 
-      # Policy as Code
-      - name: Policy Validation (Conftest)
+  ############################################################
+  # JOB 3 — Policy Validation
+  ############################################################
+  policy-scan:
+    name: Policy Validation (Conftest)
+    needs: iac-scan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Conftest Scan
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/project \
@@ -49,23 +61,48 @@ jobs:
             /project/backend/dockerfile \
             /project/frontend/Dockerfile
 
-      # Backend tests + coverage
-      - name: Install Backend Dependencies
+  ############################################################
+  # JOB 4 — Backend Tests + Coverage
+  ############################################################
+  backend-tests:
+    name: Backend Tests
+    needs: policy-scan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Python Dependencies
         run: |
           pip install -r backend/requirements.txt
           pip install pytest pytest-cov
-
-      - name: Run Backend Tests with Coverage
+      - name: Run Backend Tests
         run: pytest backend/tests --cov=backend --cov-report=xml
 
-      # Frontend tests + coverage
+  ############################################################
+  # JOB 5 — Frontend Tests + Coverage
+  ############################################################
+  frontend-tests:
+    name: Frontend Tests
+    needs: backend-tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Install Frontend Dependencies
         run: npm install --prefix frontend
-
-      - name: Run Frontend Tests with Coverage
+      - name: Run Frontend Tests
         run: npm test --prefix frontend -- --coverage --coverageReporters=lcov
 
-      # SonarCloud
+  ############################################################
+  # JOB 6 — SonarCloud Analysis
+  ############################################################
+  sonarcloud:
+    name: SonarCloud Scan
+    needs: frontend-tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v2
         env:
@@ -81,95 +118,93 @@ jobs:
             -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
-      # Docker build + set images
+  ############################################################
+  # JOB 7 — Docker Build + Push
+  ############################################################
+  docker-build:
+    name: Docker Build & Push
+    needs: sonarcloud
+    runs-on: ubuntu-24.04
+    outputs:
+      backend_image: ${{ steps.set_images.outputs.backend }}
+      frontend_image: ${{ steps.set_images.outputs.frontend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
       - name: Login GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Set image names
         id: set_images
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "::set-output name=backend::ghcr.io/${OWNER}/my-backend:latest"
           echo "::set-output name=frontend::ghcr.io/${OWNER}/my-frontend:latest"
-
-      - name: Build Docker images
+      - name: Build Docker Images
         run: docker compose build --pull
-
-      - name: Push Docker images
+      - name: Push Docker Images
         run: |
           docker push ${{ steps.set_images.outputs.backend }}
           docker push ${{ steps.set_images.outputs.frontend }}
 
   ############################################################
-  # JOB 2 — SBOM + COSIGN (PARALLÈLE)
+  # JOB 8 — SBOM + Cosign
   ############################################################
   sbom-cosign:
     name: SBOM + Cosign
-    needs: build-and-test
+    needs: docker-build
     runs-on: ubuntu-24.04
     steps:
-
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Login GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: SBOM Backend
         uses: anchore/sbom-action@v0.24.0
         with:
-          image: ${{ needs.build-and-test.outputs.backend_image }}
+          image: ${{ needs.docker-build.outputs.backend_image }}
           format: cyclonedx-json
           output-file: sbom-backend.json
-
       - name: SBOM Frontend
         uses: anchore/sbom-action@v0.24.0
         with:
-          image: ${{ needs.build-and-test.outputs.frontend_image }}
+          image: ${{ needs.docker-build.outputs.frontend_image }}
           format: cyclonedx-json
           output-file: sbom-frontend.json
-
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3
-
       - name: Sign Docker Images
         env:
           COSIGN_KEY: ${{ secrets.COSIGN_KEY }}
         run: |
-          cosign sign --yes --key env://COSIGN_KEY ${{ needs.build-and-test.outputs.backend_image }}
-          cosign sign --yes --key env://COSIGN_KEY ${{ needs.build-and-test.outputs.frontend_image }}
+          cosign sign --yes --key env://COSIGN_KEY ${{ needs.docker-build.outputs.backend_image }}
+          cosign sign --yes --key env://COSIGN_KEY ${{ needs.docker-build.outputs.frontend_image }}
 
   ############################################################
-  # JOB 3 — SECURITY SCANS (SNYK + TRIVY)
+  # JOB 9 — Security Scans (Snyk + Trivy)
   ############################################################
   security-scan:
     name: Security Scans
-    needs: build-and-test
+    needs: sbom-cosign
     runs-on: ubuntu-24.04
     steps:
-
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Login GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Snyk Scans
       - name: Snyk Backend Scan
         uses: snyk/actions/python@master
         env:
@@ -177,7 +212,6 @@ jobs:
         with:
           command: test
           args: --file=backend/requirements.txt --skip-unresolved
-
       - name: Snyk Frontend Scan
         uses: snyk/actions/node@master
         env:
@@ -185,16 +219,13 @@ jobs:
         with:
           command: test
           args: --file=frontend/package.json
-
       - name: Snyk Container Scan
         uses: snyk/actions/docker@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          image: ${{ needs.build-and-test.outputs.backend_image }}
+          image: ${{ needs.docker-build.outputs.backend_image }}
           args: --file=backend/dockerfile --severity-threshold=high
-
-      # Trivy Scans
       - name: Trivy Code Scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -202,23 +233,20 @@ jobs:
           scan-ref: .
           severity: CRITICAL,HIGH
           exit-code: 1
-
       - name: Trivy Backend Image
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: image
-          image-ref: ${{ needs.build-and-test.outputs.backend_image }}
+          image-ref: ${{ needs.docker-build.outputs.backend_image }}
           severity: CRITICAL,HIGH
           exit-code: 1
-
       - name: Trivy Frontend Image
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: image
-          image-ref: ${{ needs.build-and-test.outputs.frontend_image }}
+          image-ref: ${{ needs.docker-build.outputs.frontend_image }}
           severity: CRITICAL
           exit-code: 1
-
       - name: Notify CI Failure
         if: failure()
         run: echo "CI échouée – sécurité non conforme."
