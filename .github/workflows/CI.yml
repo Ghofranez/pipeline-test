@@ -14,7 +14,7 @@ on:
 jobs:
 
   ############################################################
-  # JOB 1 — CHECKOUT + SECRET SCAN
+  # JOB 1 — SECRET SCAN
   ############################################################
   secret-scan:
     name: Secret Scan (Gitleaks)
@@ -132,6 +132,10 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
 
+  ############################################################
+  # JOB 7 — Docker Build + Push
+  # ← SIMPLIFIÉ : plus d'export tar, juste build + push GHCR
+  ############################################################
   docker-build:
     name: Docker Build & Push
     needs: sonarcloud
@@ -167,8 +171,8 @@ jobs:
           file: ./backend/dockerfile
           push: true
           tags: ${{ steps.set_images.outputs.backend }}
-          # ← sauvegarde locale aussi
-          load: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build & Push Frontend Image
         uses: docker/build-push-action@v5
@@ -177,28 +181,8 @@ jobs:
           file: ./frontend/Dockerfile
           push: true
           tags: ${{ steps.set_images.outputs.frontend }}
-
-      # ← NOUVEAU : export des images en tar
-      - name: Export images as tar
-        run: |
-          docker build -t my-backend:latest ./backend -f ./backend/dockerfile
-          docker build -t my-frontend:latest ./frontend -f ./frontend/Dockerfile
-          docker save my-backend:latest -o backend-image.tar
-          docker save my-frontend:latest -o frontend-image.tar
-
-      - name: Upload Backend Image Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-image
-          path: backend-image.tar
-          retention-days: 1
-
-      - name: Upload Frontend Image Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-image
-          path: frontend-image.tar
-          retention-days: 1
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   ############################################################
   # JOB 8 — SBOM + Cosign

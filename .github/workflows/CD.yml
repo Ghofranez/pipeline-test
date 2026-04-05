@@ -2,7 +2,7 @@ name: CD - Deploy App
 permissions:
   contents: read
   packages: read
-  actions: read          # ← AJOUT : nécessaire pour download-artifact cross-workflow
+  actions: read
 
 on:
   workflow_run:
@@ -22,7 +22,6 @@ jobs:
     outputs:
       backend_image: ${{ steps.images.outputs.backend }}
       frontend_image: ${{ steps.images.outputs.frontend }}
-      ci_run_id: ${{ steps.ci-run.outputs.run_id }}        # ← AJOUT : exposer le run_id
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,12 +35,6 @@ jobs:
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "backend=ghcr.io/${OWNER}/my-backend:latest" >> $GITHUB_OUTPUT
           echo "frontend=ghcr.io/${OWNER}/my-frontend:latest" >> $GITHUB_OUTPUT
-
-      # ← AJOUT : capturer le run-id du CI déclencheur
-      - name: Get CI Run ID
-        id: ci-run
-        run: |
-          echo "run_id=${{ github.event.workflow_run.id }}" >> $GITHUB_OUTPUT
 
       - name: Login GHCR
         uses: docker/login-action@v3
@@ -75,6 +68,7 @@ jobs:
 
   ########################################################
   # JOB 2 — DEPLOIEMENT
+  # ← SIMPLIFIÉ : build local sur le runner, pas de download
   ########################################################
   deploy:
     name: Deploy Application
@@ -84,33 +78,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ← CORRIGÉ : run-id + github-token pour cross-workflow
-      - name: Download Backend Image
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-image
-          path: .
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ needs.cosign-verify.outputs.ci_run_id }}
-
-      - name: Download Frontend Image
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-image
-          path: .
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ needs.cosign-verify.outputs.ci_run_id }}
-
-      - name: Load Docker Images
+      # ← Build directement sur le runner self-hosted
+      # Pas de téléchargement réseau, pas d'artifact = rapide
+      - name: Build Images Locally
         run: |
-          docker load -i backend-image.tar
-          docker load -i frontend-image.tar
+          docker build -t my-backend:latest \
+            ./backend -f ./backend/dockerfile
+          docker build -t my-frontend:latest \
+            ./frontend -f ./frontend/Dockerfile
           docker images
 
       - name: Deploy with Docker Compose
         run: |
           echo "=== DÉBUT DU DÉPLOIEMENT ==="
-          cd $GITHUB_WORKSPACE
           docker compose down
           docker compose up -d
           echo "Attente du démarrage des services..."
@@ -240,7 +220,8 @@ jobs:
 
       - name: Check Container Count
         run: |
-          COUNT=$(docker ps --filter "status=running" --format "{{.Names}}" | wc -l)
+          COUNT=$(docker ps --filter "status=running" \
+            --format "{{.Names}}" | wc -l)
           echo "Nombre de conteneurs actifs : $COUNT"
           if [ "$COUNT" -lt "2" ]; then
             echo "Moins de 2 conteneurs actifs — vérification nécessaire !"
