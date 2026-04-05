@@ -1,6 +1,4 @@
 name: CI Pipeline
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 permissions:
   contents: read
   security-events: write
@@ -116,28 +114,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0                      # Historique complet requis par SonarCloud
-
+          fetch-depth: 0
       - name: Download Backend Coverage
         uses: actions/download-artifact@v4
         with:
           name: backend-coverage
           path: backend/
-
       - name: Download Frontend Coverage
         uses: actions/download-artifact@v4
         with:
           name: frontend-coverage
           path: frontend/coverage/
-
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
-        # sonar-project.properties est lu automatiquement — pas besoin d'args
 
- ############################################################
+  ############################################################
   # JOB 7 — Docker Build + Push
   ############################################################
   docker-build:
@@ -150,24 +144,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
       - name: Login GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Set image names
         id: set_images
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "backend=ghcr.io/${OWNER}/my-backend:latest" >> $GITHUB_OUTPUT
           echo "frontend=ghcr.io/${OWNER}/my-frontend:latest" >> $GITHUB_OUTPUT
-
       - name: Build & Push Backend Image
         uses: docker/build-push-action@v5
         with:
@@ -175,7 +165,6 @@ jobs:
           file: ./backend/dockerfile
           push: true
           tags: ${{ steps.set_images.outputs.backend }}
-
       - name: Build & Push Frontend Image
         uses: docker/build-push-action@v5
         with:
@@ -222,11 +211,11 @@ jobs:
           cosign sign --yes --key env://COSIGN_KEY ${{ needs.docker-build.outputs.frontend_image }}
 
   ############################################################
-  # JOB 9 — Security Scans (Snyk + Trivy)
+  # JOB 9 — Snyk Scan
   ############################################################
-  security-scan:
-    name: Security Scans
-    needs: sbom-cosign
+  snyk-scan:
+    name: Snyk Security Scan
+    needs: [sbom-cosign, docker-build]
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -237,6 +226,10 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull Docker Images
+        run: |
+          docker pull ${{ needs.docker-build.outputs.backend_image }}
+          docker pull ${{ needs.docker-build.outputs.frontend_image }}
       - name: Snyk Backend Scan
         uses: snyk/actions/python@master
         env:
@@ -258,6 +251,30 @@ jobs:
         with:
           image: ${{ needs.docker-build.outputs.backend_image }}
           args: --file=backend/dockerfile --severity-threshold=high
+      - name: Notify Snyk Failure
+        if: failure()
+        run: echo "CI échouée – Snyk a détecté des vulnérabilités."
+
+  ############################################################
+  # JOB 10 — Trivy Scan
+  ############################################################
+  trivy-scan:
+    name: Trivy Security Scan
+    needs: [sbom-cosign, docker-build]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull Docker Images
+        run: |
+          docker pull ${{ needs.docker-build.outputs.backend_image }}
+          docker pull ${{ needs.docker-build.outputs.frontend_image }}
       - name: Trivy Code Scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -279,6 +296,6 @@ jobs:
           image-ref: ${{ needs.docker-build.outputs.frontend_image }}
           severity: CRITICAL
           exit-code: 1
-      - name: Notify CI Failure
+      - name: Notify Trivy Failure
         if: failure()
-        run: echo "CI échouée – sécurité non conforme."
+        run: echo "CI échouée – Trivy a détecté des vulnérabilités critiques."
