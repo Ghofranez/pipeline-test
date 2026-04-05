@@ -65,9 +65,6 @@ jobs:
           fi
           echo "Image frontend vérifiée ✔"
 
-  ########################################################
-  # JOB 2 — DEPLOIEMENT
-  ########################################################
   deploy:
     name: Deploy Application
     needs: cosign-verify
@@ -76,17 +73,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Login GHCR
-        uses: docker/login-action@v3
+      # ← NOUVEAU : télécharger les images depuis artifacts
+      - name: Download Backend Image
+        uses: actions/download-artifact@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          name: backend-image
+          path: .
 
-      - name: Pull Latest Images
+      - name: Download Frontend Image
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-image
+          path: .
+
+      # ← NOUVEAU : charger les images dans Docker local
+      - name: Load Docker Images
         run: |
-          docker pull ${{ needs.cosign-verify.outputs.backend_image }}
-          docker pull ${{ needs.cosign-verify.outputs.frontend_image }}
+          docker load -i backend-image.tar
+          docker load -i frontend-image.tar
+          docker images
 
       - name: Deploy with Docker Compose
         run: |
