@@ -47,7 +47,7 @@ Gitleaks, Checkov, Conftest, SonarCloud, Trivy, ZAP, Falco, Snyk, Cosign…
  - Nginx (reverse proxy)
 
 3. Outils DevSecOps intégrés
-* CI (analyse avant exécution)
+* CI (analyse avant exécution):
  - Gitleaks — détection de secrets
  - Checkov — analyse de sécurité des configurations
  - Conftest — règles Rego personnalisées
@@ -56,7 +56,7 @@ Gitleaks, Checkov, Conftest, SonarCloud, Trivy, ZAP, Falco, Snyk, Cosign…
  - Cosign — signature cryptographique des images
  - Snyk — scan des dépendances
  - Trivy — scan des images Docker
-* CD (analyse en environnement réel)
+* CD (analyse en environnement réel):
  - Cosign — vérification des signatures d’images
  - OWASP ZAP — scan DAST
  - Falco — détection comportementale en temps réel
@@ -74,6 +74,8 @@ devsecops-react/
 
 ├── backend/
 
+|   ├── tests/
+
 │   ├── dockerfile
 
 │   ├── requirements.txt
@@ -81,6 +83,8 @@ devsecops-react/
 │   └── main.py
 
 ├── frontend/
+
+│   ├── tests/
 
 │   ├── Dockerfile
 
@@ -131,7 +135,7 @@ docker compose up --build
 docker compose down
 
 7. Pipeline CI/CD
-- CI — Continuous Integration
+- CI — Continuous Integration:
 
 Déclenché à chaque push sur master.
 Étapes exécutées dans l’ordre :
@@ -146,7 +150,7 @@ Déclenché à chaque push sur master.
 8- Scan dépendances — Snyk
 9- Scan images — Trivy
 
-- CD — Continuous Deployment
+- CD — Continuous Deployment:
 
 Étapes :
 
