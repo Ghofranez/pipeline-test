@@ -13,28 +13,25 @@ on:
 jobs:
 
   ############################################################
-  # JOB 1 — BUILD ET SCANS INITIAUX (Secrets, IaC, Policy)
+  # JOB 1 — BUILD ET SCANS INITIAUX
   ############################################################
   build-scan:
     name: "BUILD ET SCANS INITIAUX"
     runs-on: ubuntu-24.04
     steps:
 
-      ############################################
-      # 1. CHECKOUT DU CODE
-      ############################################
       - name: Checkout
         uses: actions/checkout@v4
 
       ############################################
-      # 2. SECRET SCANNING — GITLEAKS
+      # SECRET SCANNING — GITLEAKS
       ############################################
       - name: Secret Scan (Gitleaks)
         uses: gitleaks/gitleaks-action@v2
         continue-on-error: false
 
       ############################################
-      # 3. IaC SECURITY — CHECKOV
+      # IaC SECURITY — CHECKOV
       ############################################
       - name: IaC Scan (Checkov)
         uses: bridgecrewio/checkov-action@v12
@@ -44,7 +41,7 @@ jobs:
           config_file: ".checkov.yaml"
 
       ############################################
-      # 4. POLICY AS CODE — CONFTEST
+      # POLICY AS CODE — CONFTEST
       ############################################
       - name: Policy Validation (Conftest)
         run: |
@@ -57,16 +54,40 @@ jobs:
             /project/frontend/Dockerfile
 
       ############################################
-      # 5. SONARQUBE — SAST / CODE QUALITY
+      # TESTS & COUVERTURE
+      ############################################
+      - name: Install Backend Dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Run Backend Tests with Coverage
+        run: pytest backend/tests --cov=backend --cov-report=xml
+
+      - name: Install Frontend Dependencies
+        run: npm install --prefix frontend
+
+      - name: Run Frontend Tests with Coverage
+        run: npm test --prefix frontend -- --coverage --coverageReporters=lcov
+
+      ############################################
+      # SONARQUBE — SAST / CODE QUALITY
       ############################################
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          args: >
+            -Dsonar.projectKey=my-org_my-repo
+            -Dsonar.organization=my-org
+            -Dsonar.sources=backend,frontend
+            -Dsonar.tests=backend/tests,frontend/tests
+            -Dsonar.python.coverage.reportPaths=backend/coverage.xml
+            -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
       ############################################
-      # 6. LOGIN GHCR + BUILD + PUSH
+      # BUILD + PUSH DOCKER
       ############################################
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -95,7 +116,7 @@ jobs:
           docker push ${{ env.FRONTEND_IMAGE }}
 
       ############################################
-      # 7. SBOM (CycloneDX)
+      # SBOM (CycloneDX)
       ############################################
       - name: SBOM Backend
         uses: anchore/sbom-action@v0.24.0
@@ -112,7 +133,7 @@ jobs:
           output-file: sbom-frontend.json
 
       ############################################
-      # 8. SIGNATURE DES IMAGES — COSIGN
+      # SIGNATURE DES IMAGES — COSIGN
       ############################################
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3
@@ -125,7 +146,7 @@ jobs:
           cosign sign --yes --key env://COSIGN_KEY ${{ env.FRONTEND_IMAGE }}
 
       ############################################
-      # 9. DÉMARRAGE DES SERVICES POUR TESTS
+      # DÉMARRAGE DES SERVICES POUR TESTS
       ############################################
       - name: Start Compose
         run: docker compose up -d
@@ -144,7 +165,7 @@ jobs:
         run: curl -f http://localhost:3000/
 
   ############################################################
-  # JOB 2 — SCANS DE SECURITE COMPLÉMENTAIRES (Snyk + Trivy)
+  # JOB 2 — SCANS DE SECURITE COMPLÉMENTAIRES
   ############################################################
   security-scan:
     name: SCANS DE SECURITE COMPLÉMENTAIRES
@@ -168,11 +189,8 @@ jobs:
           echo "BACKEND_IMAGE=ghcr.io/${OWNER}/my-backend:latest" >> $GITHUB_ENV
           echo "FRONTEND_IMAGE=ghcr.io/${OWNER}/my-frontend:latest" >> $GITHUB_ENV
 
-      - name: Build Docker images for scan
-        run: docker compose build
-
       ############################################
-      # 10. SNYK — SCA + Container + Code
+      # SNYK SCANS
       ############################################
       - name: Install Python dependencies
         run: pip install -r backend/requirements.txt
@@ -202,7 +220,7 @@ jobs:
           args: --file=backend/dockerfile --severity-threshold=high
 
       ############################################
-      # 11. TRIVY — Code scan
+      # TRIVY SCANS
       ############################################
       - name: Trivy Code Scan
         uses: aquasecurity/trivy-action@master
@@ -212,9 +230,6 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: 1
 
-      ############################################
-      # 12. TRIVY — Image scan
-      ############################################
       - name: Trivy Backend Image
         uses: aquasecurity/trivy-action@master
         with:
@@ -232,7 +247,7 @@ jobs:
           exit-code: 1
 
       ############################################
-      # 13. NOTIFICATION
+      # NOTIFICATION
       ############################################
       - name: Notify CI Failure
         if: failure()
