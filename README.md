@@ -24,6 +24,8 @@ c'est une application web simple avec:
 - Cosign  — signature des images Docker
 - Snyk — vulnérabilités des dépendances
 - Trivy — scan des images Docker
+- OWASP ZAP — Scan de sécurité dynamique (DAST)
+- Falco — Surveillance comportementale en temps réel
 - Nginx — reverse proxy pour le déploiement
 # Structure de projet:
 devsecops-react/
@@ -71,7 +73,7 @@ devsecops-react/
 - git clone https://github.com/Ghofranez/pipeline-test.git
 - cd pipeline-test
 2- Créer le fichier .env
-- Le fichier .env doit contenir :
+- Le fichier .env doit contenir comme fichier .env.example:
 MYSQL_ROOT_PASSWORD=rootpassword
 
 MYSQL_USER=user
@@ -135,7 +137,7 @@ Docker en intégrant outils de sécurité a chaque test .
 
 - CD : si le CI passe, il déploie automatiquement en intégrant outils de sécurité a chaque étapes de test.
 
-# Les outils de sécurité dans le pipeline
+# Les outils de sécurité dans le pipeline CI
 Voici tous les outils que j'ai intégrés dans le pipeline CI, dans l'ordre où ils s'exécutent, avec comment les configurer si vous voulez reproduire ce projet.
 
 - Gitleaks — Détection de secrets dans le code: Gitleaks vérifie que personne n'a accidentellement mis un mot de passe ou une clé API dans le code source.
@@ -212,17 +214,45 @@ Ensuite ajoute ce step dans CI.yml
 
 Il suffit d'ajouter ce step dans le fichier CI.yml
 
+# Les outils de sécurité dans le pipeline CD
+* Contrairement au CI qui analyse le code avant qu'il tourne, les outils de sécurité du CD vérifient l'application pendant et après son déploiement. C'est une couche de protection supplémentaire en conditions réelles.
+
+- Cosign — Vérification des signatures: C'est une vérification de sécurité : si une image a été modifiée ou corrompue après sa création, la signature ne correspond plus et le déploiement s'arrête immédiatement.
+
+> Pour que ça fonctionne, il faut ajouter la clé publique Cosign dans les secrets GitHub sous le nom COSIGN_PUBLIC_KEY. C'est la clé publique générée avec cosign generate-key-pair (le fichier cosign.pub).
+
+=> La clé privée (cosign.key) signe les images dans le CI. La clé publique (cosign.pub) vérifie les signatures dans le CD. Les deux doivent avoir été générées ensemble sur ta machine.
+
+- OWASP ZAP — Scan de sécurité dynamique (DAST): OWASP ZAP teste l'application pendant qu'elle tourne en simulant des attaques réelles : injections, failles XSS, pages sensibles exposées, mauvaises configurations HTTP, etc. C'est ce qu'on appelle un test DAST (Dynamic Application Security Testing).
+
+> ZAP n'a pas besoin de secret GitHub. Il fonctionne directement via Docker, qui est déjà installé sur la VM. Aucune installation supplémentaire n'est nécessaire.
+
+- Falco — Surveillance comportementale en temps réel: Falco surveille ce qui se passe à l'intérieur des containers pendant qu'ils tournent. Il détecte les comportements suspects comme un container qui essaie d'accéder à des fichiers système sensibles, une commande inattendue qui s'exécute, ou une connexion réseau inhabituelle.
+
+* Configuration :
+
+Falco doit être installé directement sur la VM Ubuntu avant le premier déploiement. Ce n'est pas un outil qui s'installe via GitHub Actions — il tourne en permanence sur le serveur et surveille tous les containers en continu.
+
+>  Falco est différent des autres outils du pipeline : il ne s'exécute pas pendant le pipeline, il tourne tout le temps en arrière-plan sur la VM. Le pipeline se contente de lire ses alertes.
+
 # Secrets GitHub à configurer:
 
 - Tous les secrets se configurent dans : GitHub → votre repo → Settings → Secrets and variables → Actions → New repository secret
 
 * SONAR_TOKEN : généré sur SonarCloud → Account Settings → Security → Generate Token
+> Utilisé dans le CI pour permettre à SonarCloud d'analyser la qualité et la sécurité du code.
 
 * SNYK_TOKEN : disponible sur app.snyk.io → Account Settings → Auth Token
+> Utilisé dans le CI pour permettre à Snyk de scanner les vulnérabilités des dépendances.
 
 * COSIGN_KEY : contenu du fichier cosign.key généré avec cosign generate-key-pair
+> Utilisée dans le CI pour signer les images Docker après leur création.
+
+* COSIGN_PUBLIC_KEY : contenu du fichier cosign.pub généré avec cosign generate-key-pair.
+> Utilisée dans le CD pour vérifier que les images Docker ont bien été signées pendant le CI avant de les déployer.
 
 * GITHUB_TOKEN : fourni automatiquement par GitHub Actions, rien à faire
+> Utilisé pour pousser les images Docker vers GHCR et accéder aux ressources du repo pendant le pipeline.
 
 # Lancement automatiques des pipelines (CI/CD):
 
@@ -272,3 +302,9 @@ Le runner self-hosted permet à GitHub Actions de lancer le déploiement directe
 4- Installer et configurer Nginx:
 
 Nginx comme reverse proxy : il reçoit les requêtes et les redirige vers le bon service (React sur le port 3000 ou FastAPI sur le port 8000).
+
+> Avec la redirection du port :
+> Fronend: http://127.0.0.1:8080
+> Backend: http://127.0.0.1:8000
+
+5- Installer Falco : un outil qui surveille le comportement des containers en temps réel (accès fichiers suspects, commandes inhabituelles, etc.).
