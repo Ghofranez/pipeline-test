@@ -1,4 +1,4 @@
-name: CD - Deploy Docker App
+name: CD - Deploy App
 permissions:
   contents: read
 on:

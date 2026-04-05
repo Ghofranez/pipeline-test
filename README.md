@@ -1,33 +1,67 @@
-# Mon projet : pipeline-test
-Projet réalisé dans le cadre de mes apprentissages en DevOps. L'objectif est de mettre en place un pipeline CI/CD complet avec GitHub Actions, Docker, une API FastAPI et un frontend React.
-# C'est quoi ce projet ?
-c'est une application web simple avec:
-- un frontend en React
-- un backend en FastAPI
-- une base de données MySQL
-- tout est containerisé avec Docker
-- et il y a un pipeline CI/CD avec GitHub Actions qui lance automatiquement des scans de sécurité et déploie l'application.
-# Technologie utilisées :
-- React (react@19.2.4)
-- FastAPI (Python 3.12.3)
-- MySQL (Ver 8.0.45)
-- Docker (version 29.3.0)
-- Docker Compose (v5.1.0)
+# Mon projet : pipeline DevSecOps
+Ce projet est une application web composée d’un frontend React, d’un backend FastAPI, et d’une base de données MySQL, entièrement containerisés avec Docker.
 
-# Pipeline de sécurité :
-- GitHub Actions
-- Gitleaks  — détection de secrets
-- Checkov  — sécurité des fichiers de configuration
-- Conftest — validation de règles personnalisées
-- SonarQube — qualité du code
-- Anchore Syft — génération SBOM
-- Cosign  — signature des images Docker
-- Snyk — vulnérabilités des dépendances
-- Trivy — scan des images Docker
-- OWASP ZAP — Scan de sécurité dynamique (DAST)
-- Falco — Surveillance comportementale en temps réel
-- Nginx — reverse proxy pour le déploiement
-# Structure de projet:
+J’ai intégré un pipeline CI/CD complet avec GitHub Actions, incluant de nombreux outils de sécurité pour automatiser l'analyse, le build et le déploiement.
+
+# Sommaire
+ 1- Objectifs du projet
+
+ 2- Technologies utilisées
+
+ 3- Outils DevSecOps intégrés
+
+ 4- Structure du projet
+
+ 5- Prérequis
+
+ 6- Lancer le pojet en local
+
+ 7- Pipelie CI/CD
+
+ 8- Configuration des outils DevSecOps
+
+ 9- Secrets GitHub requis
+
+ 10- Infrastructure de déploiment
+
+1. Objectif du projet:
+- Ce projet vise à mettre en place un pipeline DevSecOps complet comprenant :
+
+* Une application web containerisée :
+React (frontend) + FastAPI (backend) + MySQL
+* Un pipeline CI avec :
+analyses de sécurité, qualité, SBOM, signatures d’images
+* Un pipeline CD pour déployer automatiquement l’application sur un runner self-hosted
+* Intégration d’outils spécialisés :
+Gitleaks, Checkov, Conftest, SonarCloud, Trivy, ZAP, Falco, Snyk, Cosign…
+
+2. Technologie utilisées
+* Application:
+ - Fronend: React (react@19.2.4)
+ - Backend: FastAPI (Python 3.12.3)
+ - Base de données: MySQL (Ver 8.0.45)
+* Infrastructure:
+ - Docker (version 29.3.0)
+ -  Docker Compose (v5.1.0)
+ - Github Actions
+ - Nginx (reverse proxy)
+
+3. Outils DevSecOps intégrés
+* CI (analyse avant exécution)
+ - Gitleaks — détection de secrets
+ - Checkov — analyse de sécurité des configurations
+ - Conftest — règles Rego personnalisées
+ - SonarCloud — qualité + sécurité du code
+ - Syft (Anchore) — génération SBOM
+ - Cosign — signature cryptographique des images
+ - Snyk — scan des dépendances
+ - Trivy — scan des images Docker
+* CD (analyse en environnement réel)
+ - Cosign — vérification des signatures d’images
+ - OWASP ZAP — scan DAST
+ - Falco — détection comportementale en temps réel
+
+4. Structure de projet:
 devsecops-react/
 
 ├── .github/
@@ -68,56 +102,25 @@ devsecops-react/
 
 └── README.md
 
-# Comment lancer le projet
-1- Cloner le repo:
+5. Prerequis
+Avant de lancer le projet en local, les outils suivants doivent etre installes sur la machine :
+* Git — pour cloner le depot
+* Docker Desktop (Windows / macOS) ou Docker Engine + Docker Compose plugin (Linux)
+* Un compte GitHub — pour utiliser GitHub Actions et GHCR
+
+
+6. Lancer le projet en local
+1- Cloner le dépot:
 - git clone https://github.com/Ghofranez/pipeline-test.git
 - cd pipeline-test
 2- Créer le fichier .env
-- Le fichier .env doit contenir comme fichier .env.example:
-MYSQL_ROOT_PASSWORD=rootpassword
+- Copier le contenu de .env.example puis ajuster.
 
-MYSQL_USER=user
-
-MYSQL_PASSWORD=userpassword
-
-MYSQL_DATABASE=mydb
-
-BACKEND_DB_HOST=db
-
-BACKEND_DB_PORT=3306
-
-BACKEND_DB_USER=user
-
-BACKEND_DB_PASSWORD=userpassword
-
-BACKEND_DB_NAME=mydb
-
-## Pour test local il faut installer docker et lancer manuellement:
-3- Installer Docker Desktop:Docker Desktop inclut Docker et Docker Compose
-- Windows / Mac: https://docs.docker.com/desktop/setup/install/windows-install/
-- Linux (Ubuntu) :
-
-sudo apt update
-
-sudo apt install docker.io docker-compose-plugin -y
-
-sudo systemctl start docker
-
--> vérification de l'installation:
-
-docker --version
-
-docker compose version
-
-4- Lancer avec Docker Compose:
+3- Lancer Docker Compose:
 
 docker compose up --build
 
-5- Vérifier les port :
-
-docker compose ps
-
-- L'application sera disponible sur :
+4- Accès à l'application
 
 > Frontend      -> http://localhost:3000
 
@@ -127,115 +130,201 @@ docker compose ps
 
 docker compose down
 
-# Pipeline CI/CD
+7. Pipeline CI/CD
+- CI — Continuous Integration
 
-J'ai configuré deux workflows GitHub Actions :
+Déclenché à chaque push sur master.
+Étapes exécutées dans l’ordre :
 
-- CI : à chaque push, il installe les dépendances, lance les tests et build les images
+1- Scan de secrets — Gitleaks
+2- Analyse sécurité config — Checkov
+3- Règles Rego — Conftest
+4- Qualité du code — SonarCloud
+5- Build & push des images Docker vers GHCR
+6- Géneration du SBOM (Software Bill of Materials) avec Anchore Syft
+7- Signature cryptographique des images — Cosign
+8- Scan dépendances — Snyk
+9- Scan images — Trivy
 
-Docker en intégrant outils de sécurité a chaque test .
+- CD — Continuous Deployment
 
-- CD : si le CI passe, il déploie automatiquement en intégrant outils de sécurité a chaque étapes de test.
+Étapes :
 
-# Les outils de sécurité dans le pipeline CI
-Voici tous les outils que j'ai intégrés dans le pipeline CI, dans l'ordre où ils s'exécutent, avec comment les configurer si vous voulez reproduire ce projet.
-
-- Gitleaks — Détection de secrets dans le code: Gitleaks vérifie que personne n'a accidentellement mis un mot de passe ou une clé API dans le code source.
-
-Il suffit d'ajouter ce step dans le fichier CI.yml
-> On peut aussi ajouter un fichier .gitleaks.toml à la racine pour personnaliser les règles.
-
-- Checkov — Sécurité des fichiers Docker et de configuration: Checkov analyse les Dockerfiles et autres fichiers de configuration pour détecter des mauvaises pratiques de sécurité, par exemple un container qui tourne en root ou un port sensible ouvert.
-
-Il faut créer un fichier .checkov.yaml à la racine du projet. ## configure Checkov pour savoir quels fichiers scanner et quelles règles de sécurité appliquer.
-
-et ajouter ce step dans CI.yml
-
-- Conftest — Règles de sécurité personnalisées: Conftest permet de valider les Dockerfiles contre des règles qu'on écrit soi-même en langage Rego. Par exemple : interdire l'image latest, obliger un HEALTHCHECK, etc.
-
-Les règles se placent dans le dossier policy/ dans un fichier '.rego' . Ensuite on ajoute ce step dans CI.yml
-
-- SonarQube — Qualité et sécurité du code: SonarCloud analyse le code source pour trouver des bugs, des vulnérabilités et du code mal écrit.
-
-Il faut créer un compte sur sonarcloud.io (connexion avec GitHub ).
-
-> Étapes de configuration :
-
-1- Se connecter sur sonarcloud.io avec GitHub
-
-2- Cliquer sur "+" → "Analyze new project" → sélectionner le repo → "Set up"
-
-3- Choisir "Previous version" → "Create project"
-
-4- Aller dans Administration → Analysis Method et désactiver l'Automatic Analysis (sinon conflit avec le pipeline)
-
-5- Copier le token généré et l'ajouter dans GitHub Secrets sous le nom "SONAR_TOKEN"
->> Remarque: Le projet doit être créé manuellement sur SonarCloud avant le premier lancement du pipeline, sinon il échoue avec une erreur "project not found".
-
-Créer le fichier sonar-project.properties à la racine ## c’est le fichier de configuration qui permet à SonarQube d’analyser correctement ton projet
-
-Puis ajouter ce step dans CI.yml
-
-- GitHub Container Registry (GHCR) — Stockage des images Docker: GHCR est un service gratuit intégré à GitHub pour stocker les images Docker. Pas besoin de Docker Hub.
-
-Il faut ajouter packages: write dans les permissions du workflow, puis ces steps
-
->> Remarque: Les noms d'images GHCR doivent être en minuscules. J'utilise une variable OWNER avec tr '[:upper:]' '[:lower:]' pour convertir automatiquement, même si le nom d'utilisateur GitHub contient des majuscules.
-
-- SBOM — Inventaire des composants: Le SBOM (Software Bill of Materials) est une liste complète de tous les composants utilisés dans l'application. C'est utile pour savoir rapidement si un composant vulnérable est présent.
-
+1- Checkout du code
+2- Vérification des signatures Cosign
+3- Déploiement via Docker Compose
+4- Health check de l’API
+5- Scan DAST — OWASP ZAP
+6- Analyse des alertes Falco
+7- Vérification des conteneurs
+8- Rollback automatique en cas d’erreur
+9- Notification finale
 Il suffit d'ajouter ce step dans le fichier CI.yml
 
-- Cosign — Signature des images Docker: Cosign signe les images Docker pour prouver qu'elles n'ont pas été modifiées après leur création. C'est l'équivalent d'une signature numérique sur un document.
+8. Configurations des outils
+Cette section décrit la configuration nécessaire pour chaque outil utilisé dans les pipelines CI/CD.
 
-Il faut d'abord installer sur ta machine et aprés générer une paire de clés en local: cosign generate-key-pair
+- Checkov — Sécurité des fichiers Docker et de configuration:
 
-Cela crée deux fichiers : cosign.key (clé privée) et cosign.pub (clé publique). Il faut ajouter le contenu de cosign.key dans GitHub Secrets sous le nom "COSIGN_KEY".
+Checkov analyse les Dockerfiles et fichiers de configuration pour détecter des mauvaises pratiques (ex. : conteneur exécuté en root, ports sensibles exposés).
 
-Ensuit ajoute ce step dans CI.yml
+Configuration:
 
-- Snyk— Vulnérabilités des dépendances: Snyk vérifie si les bibliothèques utilisées dans le code ont des failles de sécurité connues.
+* Créer un fichier .checkov.yaml à la racine du projet.  # Ce fichier définit les chemins à scanner et les règles activées/désactivées.
 
-Il faut créer un compte sur app.snyk.io (connexion avec GitHub).
+Pipleline:
 
-> Étapes de configuration :
+* Ajouter le step Checkov dans le fichier CI.yml.
 
-1- Se connecter sur app.snyk.io
 
-2- Aller dans Account Settings → copier l'Auth Token
+- Conftest — Règles de sécurité personnalisées
 
-3- L'ajouter dans GitHub Secrets sous le nom "SNYK_TOKEN"
+Conftest permet de valider les Dockerfiles et autres fichiers via des règles personnalisées écrites en Rego (ex. : interdire l’usage de latest, exiger un HEALTHCHECK, etc.).
 
-Ensuite ajoute ce step dans CI.yml
+Configuration:
 
->> Remarque : Il faut toujours spécifier le chemin du fichier avec --file=, sinon Snyk cherche dans la racine du projet et ne trouve rien. Ajoutez aussi --skip-unresolved pour le backend Python si les dépendances ne sont pas installées dans le runner.
+* Stocker les règles dans le dossier policy/ au format .rego.
 
-- Trivy — Scan des images Docker: Trivy scanne les images Docker et le code source pour trouver des vulnérabilités connues.
+Pipeline:
 
-Il suffit d'ajouter ce step dans le fichier CI.yml
+* Ajouter le step Conftest dans CI.yml
 
-# Les outils de sécurité dans le pipeline CD
-* Contrairement au CI qui analyse le code avant qu'il tourne, les outils de sécurité du CD vérifient l'application pendant et après son déploiement. C'est une couche de protection supplémentaire en conditions réelles.
+- SonarCloud — Qualité et sécurité du code source
 
-- Cosign — Vérification des signatures: C'est une vérification de sécurité : si une image a été modifiée ou corrompue après sa création, la signature ne correspond plus et le déploiement s'arrête immédiatement.
+SonarCloud analyse le code pour détecter bugs, vulnérabilités et problèmes de qualité.
 
-> Pour que ça fonctionne, il faut ajouter la clé publique Cosign dans les secrets GitHub sous le nom COSIGN_PUBLIC_KEY. C'est la clé publique générée avec cosign generate-key-pair (le fichier cosign.pub).
+Configuration :
 
-=> La clé privée (cosign.key) signe les images dans le CI. La clé publique (cosign.pub) vérifie les signatures dans le CD. Les deux doivent avoir été générées ensemble sur ta machine.
+1- Se connecter à https://sonarcloud.io
+ via GitHub.
 
-- OWASP ZAP — Scan de sécurité dynamique (DAST): OWASP ZAP teste l'application pendant qu'elle tourne en simulant des attaques réelles : injections, failles XSS, pages sensibles exposées, mauvaises configurations HTTP, etc. C'est ce qu'on appelle un test DAST (Dynamic Application Security Testing).
+2- Aller dans Analyze new project → sélectionner le dépôt.
 
-> ZAP n'a pas besoin de secret GitHub. Il fonctionne directement via Docker, qui est déjà installé sur la VM. Aucune installation supplémentaire n'est nécessaire.
+3- Créer manuellement le projet.
 
-- Falco — Surveillance comportementale en temps réel: Falco surveille ce qui se passe à l'intérieur des containers pendant qu'ils tournent. Il détecte les comportements suspects comme un container qui essaie d'accéder à des fichiers système sensibles, une commande inattendue qui s'exécute, ou une connexion réseau inhabituelle.
+4- Désactiver Automatic Analysis dans Administration → Analysis Method.
 
-* Configuration :
+5- Copier le token généré et l’ajouter dans GitHub Secrets sous SONAR_TOKEN.
 
-Falco doit être installé directement sur la VM Ubuntu avant le premier déploiement. Ce n'est pas un outil qui s'installe via GitHub Actions — il tourne en permanence sur le serveur et surveille tous les containers en continu.
+6- Créer le fichier sonar-project.properties à la racine du projet.
 
->  Falco est différent des autres outils du pipeline : il ne s'exécute pas pendant le pipeline, il tourne tout le temps en arrière-plan sur la VM. Le pipeline se contente de lire ses alertes.
+> Remarque: Le projet doit exister sur SonarCloud avant d'exécuter le pipeline.
 
-# Secrets GitHub à configurer:
+Pipeline:
+
+ * Ajouter le step Sonar dans CI.yml.
+
+- GHCR (GitHub Container Registry) — Stockage des images Docker
+
+Le pipeline construit et pousse les images Docker vers GHCR.
+
+Configuration:
+
+* Ajouter la permission :
+ permissions:
+  packages: write
+
+* Utiliser les noms d’images en minuscules (obligatoire pour GHCR).
+
+Pipeline:
+
+* Ajouter les steps de build et push dans CI.yml.
+
+- SBOM (Software Bill of Materials) — Inventaire des composants
+
+Généré avec Anchore Syft, le SBOM liste toutes les dépendances présentes dans l’application.
+
+Pipeline:
+
+* Ajouter le step Syft dans CI.yml.
+
+- Cosign — Signature des images Docker
+
+Cosign signe les images Docker pour garantir leur intégrité.
+
+Configuration locale (à faire une seule fois) : cosign generate-key-pair
+
+> Cela génère :
+> - cosign.key → clé privée (signature)
+> - cosign.pub → clé publique (vérification)
+
+Secrets GitHub à ajouter :
+
+COSIGN_KEY → contenu de cosign.key
+
+COSIGN_PUBLIC_KEY → contenu de cosign.pub
+
+Pipeline:
+
+* Ajouter:
+  un step Cosign sign dans CI.yml
+
+  un step Cosign verify dans CD.yml
+
+- Snyk — Analyse des dépendances
+
+Snyk détecte les vulnérabilités présentes dans les dépendances du projet.
+
+Configuration :
+
+1- Se connecter sur https://app.snyk.io
+
+2- Récupérer l’Auth Token dans Account Settings
+
+3- Ajouter le token dans GitHub Secrets → SNYK_TOKEN
+
+> Remarques:
+
+> - Toujours spécifier --file= pour cibler le fichier dépendances.
+> - Pour Python, ajouter --skip-unresolved si les dépendances ne sont pas installées sur le runner
+
+Pipeline:
+
+* Ajouter le step Snyk dans CI.yml.
+
+- Cosign (CD) — Vérification des signatures
+
+Cette étape garantit que les images déployées sont bien celles signées dans la CI.
+
+Configuration :
+
+* La clé publique Cosign (cosign.pub) doit être ajoutée dans :
+
+ COSIGN_PUBLIC_KEY (GitHub Secrets)
+
+Pipeline :
+
+* Ajouter le step Cosign verify dans CD.yml.
+
+- OWASP ZAP — Analyse DAST
+
+OWASP ZAP analyse l'application déployée en simulant des attaques (injection, XSS, config HTTP faible, etc.).
+
+Configuration :
+
+* Aucune configuration locale ni secret.
+
+* Utilise directement l’image Docker officielle.
+
+Pipeline:
+
+* Ajouter le step ZAP dans CD.yml.
+
+- Falco — Surveillance comportementale du serveur
+
+Falco surveille le comportement des conteneurs en temps réel (accès anormaux, commandes suspectes, etc.).
+
+Configuration:
+
+* Falco doit être installé manuellement sur la VM Ubuntu (il tourne en permanence).
+
+* Il n’est pas exécuté par GitHub Actions : le pipeline ne fait que lire ses alertes.
+
+Pipeline:
+
+* Ajouter un step dans CD.yml qui récupère les alertes Falco récentes.
+
+9. Secrets GitHub nécessaires
 
 - Tous les secrets se configurent dans : GitHub → votre repo → Settings → Secrets and variables → Actions → New repository secret
 
@@ -254,12 +343,11 @@ Falco doit être installé directement sur la VM Ubuntu avant le premier déploi
 * GITHUB_TOKEN : fourni automatiquement par GitHub Actions, rien à faire
 > Utilisé pour pousser les images Docker vers GHCR et accéder aux ressources du repo pendant le pipeline.
 
-# Lancement automatiques des pipelines (CI/CD):
+10. Lancement automatiques des pipelines (CI/CD):
 
-- À chaque git push, le pipeline se déclenche automatiquement. Vous pouvez suivre l'exécution dans l'onglet Actions de votre repo GitHub.
+- À chaque git push, les pipelines se déclenchent automatiquement. Vous pouvez suivre l'exécution dans l'onglet Actions du repo GitHub.
 
 > git push → CI (tests + build) → CD (déploiement automatique):
-- connecter vscode avec github (optionnel)
 - creation de repository sur GitHub (manuellement)
 
 git  init
@@ -278,8 +366,7 @@ git branch                          # Vérifier le nom du branche
 
 git push -u origin $nomdubranche    # envoie tes sauvegardes locales vers GitHub sur la branche choisie
 
-
-# Infrastructure (Déploiment)
+11. Infrastructure de déploiement
 Pour le déploiement, j'utilise une machine virtuelle Ubuntu Server sur VirtualBox sur laquelle tourne à la fois le runner GitHub Actions (self-hosted) et le serveur Nginx.
 
 Pourquoi un runner self-hosted ?
@@ -289,13 +376,13 @@ Ma VM est en local sur VirtualBox, donc GitHub ne peut pas y accéder directemen
 
 1- Préparer la VM Ubuntu:Mettre à jour le système et installer les outils de base (curl, git)
 
-2- Installer Docker sur la VM et vérifier que Docker fonctionne:
+2- Installer Docker et docker compose:
 
 Docker est nécessaire pour lancer les containers de l'application sur le serveur
 
 3- Configurer le runnerself-hosted GitHub Actions et lancer le runner en tant que service:
 
-Le runner self-hosted permet à GitHub Actions de lancer le déploiement directement sur ma VM au lieu des serveurs de GitHub.
+Le runner self-hosted permet à GitHub Actions de lancer le déploiement directement sur ma VM .
 
 > J'ai utilisé un runner self-hosted parce que ma VM est en local sur VirtualBox, donc GitHub ne peut pas y accéder directement. Le runner est installé sur la VM pour qu'il écoute GitHub et exécute le déploiement de mon côté.
 
@@ -308,3 +395,7 @@ Nginx comme reverse proxy : il reçoit les requêtes et les redirige vers le bon
 > Backend: http://127.0.0.1:8000
 
 5- Installer Falco : un outil qui surveille le comportement des containers en temps réel (accès fichiers suspects, commandes inhabituelles, etc.).
+
+Schéma de flux :
+
+git push → CI → CD → Déploiement sur VM → Application en ligne
