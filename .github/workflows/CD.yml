@@ -78,8 +78,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ← Build directement sur le runner self-hosted
-      # Pas de téléchargement réseau, pas d'artifact = rapide
       - name: Build Images Locally
         run: |
           docker build -t my-backend:latest \
@@ -91,8 +89,8 @@ jobs:
       - name: Deploy with Docker Compose
         run: |
           echo "=== DÉBUT DU DÉPLOIEMENT ==="
-          docker compose down
-          docker compose up -d
+          docker-compose down          # ← tiret
+          docker-compose up -d         # ← tiret
           echo "Attente du démarrage des services..."
           sleep 20
           docker ps
@@ -229,7 +227,7 @@ jobs:
           fi
           echo "Tous les conteneurs sont actifs ✔"
 
-  ########################################################
+ ########################################################
   # JOB 7 — ROLLBACK SI ECHEC
   ########################################################
   rollback:
@@ -240,14 +238,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Rollback Docker Compose
         run: |
           echo "=== ROLLBACK EN COURS ==="
-          docker compose down
-          docker compose up -d
+          docker-compose down          # ← tiret
+          docker-compose up -d         # ← tiret
           echo "=== ROLLBACK TERMINÉ ==="
-
       - name: Verify Rollback
         run: |
           sleep 10
