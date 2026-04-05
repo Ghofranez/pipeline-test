@@ -3,6 +3,7 @@ permissions:
   contents: read
   security-events: write
   packages: write
+  actions: read
 
 on:
   push:
@@ -198,7 +199,7 @@ jobs:
           name: frontend-image
           path: frontend-image.tar
           retention-days: 1
-          
+
   ############################################################
   # JOB 8 — SBOM + Cosign
   ############################################################
