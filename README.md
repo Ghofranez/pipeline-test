@@ -282,19 +282,21 @@ Pipeline:
 
 * Ajouter le step Snyk dans CI.yml.
 
-- Cosign (CD) — Vérification des signatures
+- Cosign (CD) — Signature (CI) & Vérification (CD)
 
-Cette étape garantit que les images déployées sont bien celles signées dans la CI.
+L’utilisation de Cosign dans la pipeline permet de garantir que seules les images construites et signées en CI peuvent être déployées en CD.
 
 Configuration :
 
-* La clé publique Cosign (cosign.pub) doit être ajoutée dans :
+* La clé privé Cosign (cosign.key) dot etre ajoutée dans: COSIGN_KEY (GitHub Secrets)
 
- COSIGN_PUBLIC_KEY (GitHub Secrets)
+* La clé publique Cosign (cosign.pub) doit être ajoutée dans : COSIGN_PUBLIC_KEY (GitHub Secrets)
 
 Pipeline :
 
-* Ajouter le step Cosign verify dans CD.yml.
+* ntégrer une étape Cosign sign dans CI.yml pour signer l’image publiée.
+
+* Intégrer une étape Cosign verify dans CD.yml pour valider la signature avant le déploiement.
 
 - OWASP ZAP — Analyse DAST
 
