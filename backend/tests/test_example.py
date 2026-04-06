@@ -12,7 +12,7 @@ client = TestClient(app)
 def test_read_root():
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"message": "FastAPI fonctionne "}
+    assert response.json() == {"message": "FastAPI fonctionne (ghofrane) "}
 
 # Test 2 — route hello avec un nom
 def test_hello():
