@@ -75,14 +75,16 @@ jobs:
       - name: Install Python Dependencies
         run: |
           pip install -r backend/requirements.txt
-          pip install pytest pytest-cov
+          pip install pytest pytest-cov httpx
       - name: Run Backend Tests
-        run: pytest backend/tests --cov=backend --cov-report=xml
+        # ✅ FIX: sortie du coverage directement dans backend/
+        run: pytest backend/tests --cov=backend --cov-report=xml:backend/coverage.xml
       - name: Upload Backend Coverage
         uses: actions/upload-artifact@v4
         with:
           name: backend-coverage
-          path: coverage.xml
+          # ✅ FIX: chemin corrigé
+          path: backend/coverage.xml
 
   ############################################################
   # JOB 5 — Frontend Tests + Coverage
@@ -97,7 +99,7 @@ jobs:
       - name: Install Frontend Dependencies
         run: npm install --prefix frontend
       - name: Run Frontend Tests
-        run: npm test --prefix frontend -- --coverage --coverageReporters=lcov
+        run: npm test --prefix frontend -- --coverage --coverageReporters=lcov --watchAll=false
       - name: Upload Frontend Coverage
         uses: actions/upload-artifact@v4
         with:
@@ -120,7 +122,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: backend-coverage
-          path: backend/
+          # ✅ FIX: télécharger à la racine pour garder backend/coverage.xml
+          path: .
       - name: Download Frontend Coverage
         uses: actions/download-artifact@v4
         with:
@@ -134,7 +137,6 @@ jobs:
 
   ############################################################
   # JOB 7 — Docker Build + Push
-  # ← SIMPLIFIÉ : plus d'export tar, juste build + push GHCR
   ############################################################
   docker-build:
     name: Docker Build & Push

@@ -50,7 +50,7 @@ jobs:
             echo "Image backend non signée — déploiement stoppé !"
             exit 1
           fi
-          echo "Image backend vérifiée ✔"
+          echo "Image backend vérifiée "
 
       - name: Verify Frontend Image
         env:
@@ -61,7 +61,7 @@ jobs:
             echo "Image frontend non signée — déploiement stoppé !"
             exit 1
           fi
-          echo "Image frontend vérifiée ✔"
+          echo "Image frontend vérifiée "
 
   ########################################################
   # JOB 2 — DEPLOIEMENT
@@ -102,7 +102,7 @@ jobs:
         run: |
           for i in {1..10}; do
             if curl -sf http://localhost:8000/; then
-              echo "Backend opérationnel ✔"
+              echo "Backend opérationnel "
               exit 0
             fi
             echo "Tentative $i/10 — attente 5s..."
@@ -115,7 +115,7 @@ jobs:
         run: |
           for i in {1..10}; do
             if curl -sf http://localhost:3000/; then
-              echo "Frontend opérationnel ✔"
+              echo "Frontend opérationnel "
               exit 0
             fi
             echo "Tentative $i/10 — attente 5s..."
@@ -161,7 +161,7 @@ jobs:
               echo "ZAP détecte $CRITICAL faille(s) CRITIQUE(S) — déploiement stoppé !"
               exit 1
             fi
-            echo "Aucune faille critique détectée par ZAP ✔"
+            echo "Aucune faille critique détectée par ZAP "
           else
             echo "Rapport ZAP non trouvé — scan ignoré"
           fi
@@ -190,7 +190,7 @@ jobs:
             echo "$ALERTS"
             exit 1
           fi
-          echo "Aucune alerte Falco critique ✔"
+          echo "Aucune alerte Falco critique "
 
   ########################################################
   # JOB 6 — VERIFY CONTAINERS
@@ -214,7 +214,7 @@ jobs:
             echo "Moins de 2 conteneurs actifs — vérification nécessaire !"
             exit 1
           fi
-          echo "Tous les conteneurs sont actifs ✔"
+          echo "Tous les conteneurs sont actifs "
 
   ########################################################
   # JOB 7 — ROLLBACK SI ECHEC
@@ -237,7 +237,7 @@ jobs:
         run: |
           sleep 10
           docker ps
-          echo "Rollback effectué ✔"
+          echo "Rollback effectué "
 
   ########################################################
   # JOB 8 — NOTIFICATIONS
@@ -251,11 +251,11 @@ jobs:
       - name: Notify Success
         if: ${{ needs.verify-containers.result == 'success' }}
         run: |
-          echo "✔ Déploiement réussi !"
+          echo "Déploiement réussi !"
           echo "Backend  : ${{ needs.cosign-verify.outputs.backend_image }}"
           echo "Frontend : ${{ needs.cosign-verify.outputs.frontend_image }}"
 
       - name: Notify Failure
         if: ${{ needs.verify-containers.result != 'success' }}
         run: |
-          echo "✘ Déploiement échoué — vérifiez les logs GitHub Actions !"
+          echo "Déploiement échoué — vérifiez les logs GitHub Actions !"
